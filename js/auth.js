@@ -3,6 +3,63 @@ function persistPortalSession(response) {
     localStorage.setItem('portal_user', JSON.stringify(response));
 }
 
+async function completePortalExternalLogin(token, fallbackProfile = null) {
+    localStorage.setItem('portal_token', token);
+
+    try {
+        const profile = await api.request('/portal/profile/me');
+        persistPortalSession({
+            token,
+            ...profile
+        });
+        return;
+    } catch (error) {
+        if (fallbackProfile) {
+            persistPortalSession({
+                token,
+                ...fallbackProfile
+            });
+            return;
+        }
+
+        localStorage.removeItem('portal_token');
+        throw error;
+    }
+}
+
+function readPortalOAuthCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const hasRelevantParams =
+        params.has('token') ||
+        params.has('error') ||
+        params.has('newUser');
+
+    if (!hasRelevantParams) {
+        return null;
+    }
+
+    return {
+        token: (params.get('token') || '').trim(),
+        email: (params.get('email') || '').trim(),
+        name: (params.get('name') || '').trim(),
+        newUser: params.get('newUser') === 'true',
+        error: (params.get('error') || '').trim()
+    };
+}
+
+function clearPortalOAuthCallback() {
+    const cleanUrl = `${window.location.origin}${window.location.pathname}${window.location.hash || ''}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+}
+
+window.startPortalGoogleLogin = function () {
+    const redirectUrl = new URL('index.html', window.location.href);
+    redirectUrl.search = '';
+    redirectUrl.hash = '';
+
+    window.location.href = `${API_URL}/portal/auth/google-mobile-start?redirectUri=${encodeURIComponent(redirectUrl.toString())}`;
+};
+
 window.handlePortalGoogleLogin = async function (googleResponse) {
     const errorMsg = document.getElementById('errorMessage');
     const loginForm = document.getElementById('loginForm');
@@ -23,7 +80,7 @@ window.handlePortalGoogleLogin = async function (googleResponse) {
             credential: googleResponse.credential
         });
 
-        persistPortalSession(response);
+        await completePortalExternalLogin(response.token, response);
         window.location.href = 'dashboard.html';
     } catch (error) {
         if (errorMsg) {
@@ -40,6 +97,7 @@ window.handlePortalGoogleLogin = async function (googleResponse) {
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const errorMsg = document.getElementById('errorMessage');
+    const googleButton = document.getElementById('portalGoogleLoginButton');
 
     const hasToken = !!localStorage.getItem('portal_token');
     const isLoginPage =
@@ -47,6 +105,53 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.pathname.endsWith('\\index.html') ||
         window.location.pathname === '/' ||
         window.location.pathname === '';
+    const oauthCallback = readPortalOAuthCallback();
+
+    if (googleButton) {
+        googleButton.addEventListener('click', () => {
+            if (errorMsg) {
+                errorMsg.textContent = '';
+            }
+
+            startPortalGoogleLogin();
+        });
+    }
+
+    if (oauthCallback) {
+        const finalizeOAuthLogin = async () => {
+            clearPortalOAuthCallback();
+
+            if (oauthCallback.error) {
+                if (errorMsg) {
+                    errorMsg.textContent = oauthCallback.error;
+                }
+                return;
+            }
+
+            if (oauthCallback.newUser || !oauthCallback.token) {
+                if (errorMsg) {
+                    errorMsg.textContent = 'O e-mail usado no Google ainda nao esta liberado no portal. Fale com o administrador.';
+                }
+                return;
+            }
+
+            try {
+                await completePortalExternalLogin(oauthCallback.token, {
+                    name: oauthCallback.name || oauthCallback.email || 'Cliente',
+                    username: oauthCallback.email || oauthCallback.name || 'google',
+                    email: oauthCallback.email || null
+                });
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                if (errorMsg) {
+                    errorMsg.textContent = error.message || 'Nao foi possivel concluir o login com Google.';
+                }
+            }
+        };
+
+        finalizeOAuthLogin();
+        return;
+    }
 
     if (hasToken && isLoginPage) {
         window.location.href = 'dashboard.html';
@@ -73,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await api.request('/portal/auth/login', 'POST', { username, password });
 
-            persistPortalSession(response);
+            await completePortalExternalLogin(response.token, response);
             window.location.href = 'dashboard.html';
         } catch (error) {
             errorMsg.textContent = error.message || 'Nao foi possivel acessar o portal.';

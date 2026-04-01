@@ -274,6 +274,21 @@ function schedulePortalNotificationsRefresh() {
     }, 200);
 }
 
+function schedulePortalRealtimeRestart(delay = 5000) {
+    if (window.__portalRealtimeRetryTimer) {
+        window.clearTimeout(window.__portalRealtimeRetryTimer);
+    }
+
+    if (!localStorage.getItem('portal_token')) {
+        return;
+    }
+
+    window.__portalRealtimeRetryTimer = window.setTimeout(() => {
+        window.__portalRealtimeStarted = false;
+        startPortalRealtimeNotifications();
+    }, delay);
+}
+
 async function startPortalRealtimeNotifications() {
     if (window.__portalRealtimeStarted || !localStorage.getItem('portal_token')) {
         return;
@@ -290,26 +305,42 @@ async function startPortalRealtimeNotifications() {
         return;
     }
 
-    const connection = new window.signalR.HubConnectionBuilder()
-        .withUrl(window.buildHubUrl('/hubs/notifications'), {
-            accessTokenFactory: () => localStorage.getItem('portal_token') || ''
-        })
-        .withAutomaticReconnect()
-        .build();
+    let connection = window.__portalRealtimeConnection;
 
-    connection.on('notificationReceived', (notification) => {
-        window.dispatchEvent(new CustomEvent('portal:notification-received', { detail: notification || null }));
-        schedulePortalNotificationsRefresh();
-    });
+    if (!connection) {
+        connection = new window.signalR.HubConnectionBuilder()
+            .withUrl(window.buildHubUrl('/hubs/notifications'), {
+                accessTokenFactory: () => localStorage.getItem('portal_token') || ''
+            })
+            .withAutomaticReconnect()
+            .build();
 
-    connection.onreconnected(() => schedulePortalNotificationsRefresh());
+        connection.on('notificationReceived', (notification) => {
+            window.dispatchEvent(new CustomEvent('portal:notification-received', { detail: notification || null }));
+            schedulePortalNotificationsRefresh();
+        });
+
+        connection.onreconnected(() => schedulePortalNotificationsRefresh());
+        connection.onclose(() => {
+            window.__portalRealtimeStarted = false;
+            schedulePortalRealtimeRestart();
+        });
+
+        window.__portalRealtimeConnection = connection;
+    }
+
+    if (window.signalR.HubConnectionState
+        && connection.state !== window.signalR.HubConnectionState.Disconnected) {
+        return;
+    }
 
     try {
         await connection.start();
         window.__portalRealtimeStarted = true;
-        window.__portalRealtimeConnection = connection;
         schedulePortalNotificationsRefresh();
     } catch (error) {
+        window.__portalRealtimeStarted = false;
         console.warn('Nao foi possivel iniciar a conexao SignalR do portal.', error);
+        schedulePortalRealtimeRestart();
     }
 }

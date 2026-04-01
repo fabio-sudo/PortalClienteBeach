@@ -6,7 +6,6 @@
     <title>Arena Portal - Acesso do Cliente</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="portal-shell portal-auth-body">
     <div class="portal-auth-grid">
@@ -18,7 +17,7 @@
             </div>
 
             <div class="portal-google-wrap">
-                <div id="portalGoogleSigninMount"></div>
+                <button type="button" id="portalGoogleLoginButton" class="btn btn-outline">Fazer Login com o Google</button>
             </div>
 
             <div class="portal-auth-divider">
@@ -82,52 +81,5 @@
 
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
-    <script>
-        function getPortalGoogleClientId() {
-            const configuredValue =
-                window.ARENA_GOOGLE_CLIENT_ID ||
-                window.ARENA_RUNTIME_CONFIG?.googleClientId ||
-                document.querySelector('meta[name="arena-google-client-id"]')?.content ||
-                '';
-
-            if (!configuredValue || (configuredValue.startsWith('__') && configuredValue.endsWith('__'))) {
-                return '';
-            }
-
-            return configuredValue.trim();
-        }
-
-        async function initPortalGoogleSignIn() {
-            const mount = document.getElementById('portalGoogleSigninMount');
-            const clientId = getPortalGoogleClientId();
-            if (!mount || !clientId) {
-                return;
-            }
-
-            for (let attempt = 0; attempt < 20; attempt += 1) {
-                if (window.google?.accounts?.id) {
-                    window.google.accounts.id.initialize({
-                        client_id: clientId,
-                        callback: handlePortalGoogleLogin,
-                        auto_select: false
-                    });
-
-                    window.google.accounts.id.renderButton(mount, {
-                        type: 'standard',
-                        shape: 'pill',
-                        theme: 'outline',
-                        text: 'signin_with',
-                        size: 'large',
-                        logo_alignment: 'left'
-                    });
-                    return;
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 250));
-            }
-        }
-
-        initPortalGoogleSignIn();
-    </script>
 </body>
 </html>
