@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Portal - Minha Comanda</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .page-shell { min-height:100vh; padding:2rem; }
+        .page-wrap { max-width:1180px; margin:0 auto; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; }
+        .panel-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:24px; }
+        .request-list { display:grid; gap:16px; }
+        .request-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:20px; align-items:center; }
+        .request-meta { display:flex; flex-wrap:wrap; gap:12px; color:var(--text-muted); font-size:.92rem; }
+        .request-actions { display:flex; flex-direction:column; gap:12px; align-items:flex-end; }
+        .status-badge { padding:.42rem .9rem; border-radius:999px; font-size:.76rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+        .status-pending { background:rgba(245,158,11,.16); color:#fcd34d; }
+        .status-approved { background:rgba(16,185,129,.16); color:#6ee7b7; }
+        .status-rejected { background:rgba(239,68,68,.16); color:#fca5a5; }
+        .status-cancelled { background:rgba(148,163,184,.16); color:#cbd5e1; }
+        .empty-box { padding:28px 18px; text-align:center; color:var(--text-muted); border-radius:18px; border:1px dashed rgba(255,255,255,.12); background:rgba(255,255,255,.02); }
+        .hint-box { margin-top:14px; padding:14px 16px; border-radius:16px; background:rgba(255,107,44,.09); border:1px solid rgba(255,107,44,.18); color:var(--text-soft); }
+        .form-actions { display:flex; justify-content:flex-end; gap:12px; margin-top:16px; }
+        .metric-strip { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:18px; }
+        .metric-card { padding:1rem; border-radius:20px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); }
+        .metric-card span { display:block; color:var(--text-muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.45rem; }
+        .metric-card strong { display:block; font-size:1.05rem; line-height:1.2; overflow-wrap:anywhere; }
+        .current-tab-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; }
+        @media (max-width: 900px) {
+            .page-shell { padding:1rem; }
+            .toolbar, .panel-grid, .request-card, .metric-strip { display:grid; grid-template-columns:1fr; }
+            .request-actions { align-items:flex-start; }
+        }
+    </style>
+</head>
+<body class="portal-page">
+    <div class="page-shell">
+        <div class="page-wrap">
+            <header class="topbar portal-topbar">
+                <div class="portal-topbar-stack">
+                    <div class="portal-topbar-head">
+                        <div class="portal-brand">
+                            <div class="portal-brand-mark">AP</div>
+                            <div class="portal-brand-copy">
+                                <strong>Arena Portal</strong>
+                                <span id="userNameDisplay">Carregando sua area de comandas...</span>
+                            </div>
+                        </div>
+                        <div class="portal-top-actions">
+                            <div class="portal-action-group">
+                                <div class="notifications-wrapper" style="position:relative;">
+                                    <button id="btnNotifications" class="portal-icon-button" type="button" aria-label="Notificacoes">
+                                        <span class="portal-icon-symbol" aria-hidden="true">&#128276;</span>
+                                        <span id="notificationBadge" class="portal-notification-badge">0</span>
+                                    </button>
+                                    <div id="notificationsDropdown" class="portal-dropdown">
+                                        <div class="portal-dropdown-header">
+                                            <strong>Notificacoes</strong>
+                                            <a href="#" id="btnMarkAllRead" class="portal-dropdown-link">Marcar lidas</a>
+                                        </div>
+                                        <div id="notificationsList" class="portal-dropdown-body">
+                                            <p style="color:var(--text-muted); text-align:center; font-size:0.9rem; margin-top:10px;">Carregando...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn-ghost" onclick="logout()">
+                                    <span aria-hidden="true">&#x21AA;</span>
+                                    <span>Sair</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <nav class="portal-nav-tabs" aria-label="Menu do portal">
+                        <a href="dashboard.html" class="portal-nav-link">Visao geral</a>
+                        <a href="agendamentos.html" class="portal-nav-link">Agendamentos</a>
+                        <a href="comandas.html" class="portal-nav-link active">Comandas</a>
+                        <a href="mensalidades.html" class="portal-nav-link">Mensalidades</a>
+                    </nav>
+                </div>
+            </header>
+
+            <main style="display:grid; gap:24px;">
+                <section class="portal-panel">
+                    <div class="toolbar">
+                        <div>
+                            <div class="portal-section-title">Bar e PDV</div>
+                            <h1 style="font-size:clamp(2rem,4vw,3rem); line-height:.98;">Minha Comanda</h1>
+                            <p style="color:var(--text-muted); margin-top:10px;">Solicite a abertura da comanda e, depois de aprovada, envie pedidos para o administrativo validar no bar.</p>
+                        </div>
+                        <button id="btnNewRequest" class="btn btn-primary glow-effect" style="width:auto;">Solicitar Abertura</button>
+                    </div>
+
+                    <div class="metric-strip">
+                        <div class="metric-card">
+                            <span>Status atual</span>
+                            <strong id="currentStatusMetric">Sem comanda ativa</strong>
+                        </div>
+                        <div class="metric-card">
+                            <span>Solicitacoes</span>
+                            <strong id="requestCountMetric">0 registradas</strong>
+                        </div>
+                        <div class="metric-card">
+                            <span>Pedidos liberados</span>
+                            <strong id="itemAccessMetric">Aguardando aprovacao</strong>
+                        </div>
+                        <div class="metric-card">
+                            <span>Total da comanda</span>
+                            <strong id="currentTotalMetric">R$ 0,00</strong>
+                        </div>
+                    </div>
+
+                    <div class="panel-grid">
+                        <div id="currentTabPanel" class="portal-panel" style="background:rgba(255,255,255,.03);">
+                            <div class="portal-section-title">Comanda Ativa</div>
+                            <div id="currentTabContent" class="empty-box">Nenhuma comanda aprovada neste momento.</div>
+                        </div>
+
+                        <div id="newRequestPanel" class="portal-panel" style="display:none; background:rgba(255,255,255,.03);">
+                            <div class="portal-section-title">Nova Solicitacao</div>
+                            <h3 style="margin-bottom:16px;">Abrir comanda</h3>
+                            <form id="requestForm" class="auth-form">
+                                <div class="input-group">
+                                    <label for="tableNumber">Mesa ou local</label>
+                                    <input type="text" id="tableNumber" placeholder="Ex: Mesa 4, Quadra 2">
+                                </div>
+                                <div class="input-group">
+                                    <label for="reqNotes">Observacoes</label>
+                                    <input type="text" id="reqNotes" placeholder="Ex: estou com mais 3 amigos.">
+                                </div>
+                                <div class="hint-box">
+                                    Depois da aprovacao, o botao de pedidos do bar fica liberado e cada item segue para avaliacao do administrativo.
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-ghost" id="btnCancelForm" style="width:auto;">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary" style="width:auto;">Enviar solicitacao</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="portal-panel portal-filter-panel">
+                    <div class="portal-filter-head">
+                        <div class="portal-filter-copy">
+                            <div class="portal-section-title">Filtros do Historico</div>
+                            <p>O historico ja abre em hoje para evitar carregar toda a base sem necessidade. Voce pode alternar rapidamente entre abertas, fechadas, recusadas e os demais status.</p>
+                        </div>
+                        <span class="portal-pill info" id="historyFilterCount">0 resultados</span>
+                    </div>
+
+                    <div class="portal-filter-grid">
+                        <div class="input-group">
+                            <label for="filterFromDate">Data inicial</label>
+                            <input type="date" id="filterFromDate">
+                        </div>
+                        <div class="input-group">
+                            <label for="filterToDate">Data final</label>
+                            <input type="date" id="filterToDate">
+                        </div>
+                        <div class="input-group">
+                            <label for="filterStatus">Status</label>
+                            <select id="filterStatus">
+                                <option value="all">Todas</option>
+                                <option value="open">Abertas</option>
+                                <option value="closed">Fechadas</option>
+                                <option value="rejected">Recusadas</option>
+                                <option value="pending">Pendentes</option>
+                                <option value="cancelled">Canceladas</option>
+                            </select>
+                        </div>
+                        <div class="portal-filter-actions">
+                            <button type="button" class="btn btn-ghost" id="btnResetFilters" style="width:auto;">Hoje</button>
+                            <button type="button" class="btn btn-primary" id="btnApplyFilters" style="width:auto;">Aplicar filtros</button>
+                        </div>
+                    </div>
+
+                    <div class="portal-filter-summary" id="historyFilterSummary">Carregando filtros...</div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="portal-section-title">Historico de Solicitacoes</div>
+                    <div id="requestsContainer" class="request-list">
+                        <div class="empty-box">Carregando historico...</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const formatCurrency = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        let requestsPollingId = null;
+        const getLocalDateInputValue = (value = new Date()) => {
+            const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+            return local.toISOString().split('T')[0];
+        };
+        const formatPeriodLabel = (fromDate, toDate) => {
+            if (!fromDate && !toDate) {
+                return 'todo o periodo';
+            }
+
+            const fromLabel = fromDate ? new Date(`${fromDate}T00:00:00`).toLocaleDateString('pt-BR') : 'o inicio';
+            const toLabel = toDate ? new Date(`${toDate}T00:00:00`).toLocaleDateString('pt-BR') : 'hoje';
+            return `de ${fromLabel} ate ${toLabel}`;
+        };
+        const buildQueryString = filters => {
+            const query = new URLSearchParams();
+
+            if (filters.fromDate) {
+                query.set('fromDate', filters.fromDate);
+            }
+
+            if (filters.toDate) {
+                query.set('toDate', filters.toDate);
+            }
+
+            if (filters.status && filters.status !== 'all') {
+                query.set('status', filters.status);
+            }
+
+            const serialized = query.toString();
+            return serialized ? `?${serialized}` : '';
+        };
+        const getHistoryFilters = () => ({
+            fromDate: document.getElementById('filterFromDate').value,
+            toDate: document.getElementById('filterToDate').value,
+            status: document.getElementById('filterStatus').value
+        });
+        const getStatusLabel = status => ({
+            all: 'todas as comandas',
+            open: 'comandas abertas',
+            closed: 'comandas fechadas',
+            rejected: 'comandas recusadas',
+            pending: 'comandas pendentes',
+            cancelled: 'comandas canceladas'
+        }[status] || 'todas as comandas');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('portal_user')) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const portalUser = JSON.parse(localStorage.getItem('portal_user') || 'null');
+            document.getElementById('userNameDisplay').textContent =
+                portalUser?.name
+                    ? `${portalUser.name.split(' ')[0]}, acompanhe a abertura e os pedidos da sua comanda.`
+                    : 'Acompanhe a abertura e os pedidos da sua comanda.';
+
+            const today = getLocalDateInputValue();
+            document.getElementById('filterFromDate').value = today;
+            document.getElementById('filterToDate').value = today;
+
+            await loadRequests();
+
+            document.getElementById('btnNewRequest').addEventListener('click', () => {
+                document.getElementById('newRequestPanel').style.display = 'block';
+            });
+
+            document.getElementById('btnCancelForm').addEventListener('click', () => {
+                document.getElementById('newRequestPanel').style.display = 'none';
+                document.getElementById('requestForm').reset();
+            });
+
+            document.getElementById('requestForm').addEventListener('submit', submitRequest);
+            document.getElementById('btnApplyFilters').addEventListener('click', loadRequests);
+            document.getElementById('btnResetFilters').addEventListener('click', async () => {
+                document.getElementById('filterFromDate').value = today;
+                document.getElementById('filterToDate').value = today;
+                document.getElementById('filterStatus').value = 'all';
+                await loadRequests();
+            });
+            document.getElementById('filterStatus').addEventListener('change', loadRequests);
+            requestsPollingId = setInterval(() => {
+                if (!document.hidden) {
+                    loadRequests();
+                }
+            }, 15000);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    loadRequests();
+                }
+            });
+        });
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        async function submitRequest(event) {
+            event.preventDefault();
+            const button = event.target.querySelector('button[type="submit"]');
+            const originalText = button.textContent;
+            button.textContent = 'Enviando...';
+            button.disabled = true;
+
+            try {
+                await api.request('/portal/tab-open-requests', 'POST', {
+                    tableNumber: document.getElementById('tableNumber').value.trim() || null,
+                    requestNotes: document.getElementById('reqNotes').value.trim() || null
+                });
+
+                document.getElementById('newRequestPanel').style.display = 'none';
+                document.getElementById('requestForm').reset();
+                await loadRequests();
+                await portalFeedback.success('Solicitacao enviada. Assim que a comanda for aprovada, voce podera pedir itens.', {
+                    title: 'Solicitacao registrada'
+                });
+            } catch (error) {
+                await portalFeedback.error(error.message || 'Nao foi possivel enviar a solicitacao.');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function updateMetrics(historyRequests, approvedRequest, pendingRequest, summary = null) {
+            document.getElementById('requestCountMetric').textContent = `${historyRequests.length} registradas`;
+            document.getElementById('currentTotalMetric').textContent = summary ? formatCurrency(summary.totalAmount) : 'R$ 0,00';
+
+            if (approvedRequest) {
+                document.getElementById('currentStatusMetric').textContent = 'Comanda aprovada';
+                document.getElementById('itemAccessMetric').textContent = 'Pedidos liberados';
+                return;
+            }
+
+            if (pendingRequest) {
+                document.getElementById('currentStatusMetric').textContent = 'Aguardando aprovacao';
+                document.getElementById('itemAccessMetric').textContent = 'Bloqueado ate aprovar';
+                return;
+            }
+
+            document.getElementById('currentStatusMetric').textContent = 'Sem comanda ativa';
+            document.getElementById('itemAccessMetric').textContent = 'Sem pedidos ativos';
+        }
+
+        async function loadCurrentTabSummary(tabId) {
+            return api.request(`/portal/tab-summary/${tabId}`);
+        }
+
+        async function loadRequests() {
+            const container = document.getElementById('requestsContainer');
+            const currentTabContent = document.getElementById('currentTabContent');
+            const newRequestButton = document.getElementById('btnNewRequest');
+            const filters = getHistoryFilters();
+            const historySummary = document.getElementById('historyFilterSummary');
+            const historyCount = document.getElementById('historyFilterCount');
+
+            try {
+                const [activeRequests, historyRequests] = await Promise.all([
+                    api.request('/portal/tab-open-requests?status=active'),
+                    api.request(`/portal/tab-open-requests${buildQueryString(filters)}`)
+                ]);
+
+                const approvedRequest = activeRequests
+                    .filter(request => request.status === 'Approved' && request.isApprovedTabOpen)
+                    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0] || null;
+
+                const pendingRequest = activeRequests.some(request => request.status === 'Pending');
+
+                historyCount.textContent = `${historyRequests.length} resultado${historyRequests.length === 1 ? '' : 's'}`;
+                historySummary.textContent = `Mostrando ${getStatusLabel(filters.status)} ${formatPeriodLabel(filters.fromDate, filters.toDate)}.`;
+
+                if (!historyRequests.length) {
+                    container.innerHTML = '<div class="empty-box">Nenhuma solicitacao encontrada para os filtros informados.</div>';
+                }
+
+                if (approvedRequest) {
+                    const summary = await loadCurrentTabSummary(approvedRequest.approvedTabId).catch(() => null);
+                    updateMetrics(historyRequests, approvedRequest, pendingRequest, summary);
+                    currentTabContent.className = '';
+                    currentTabContent.innerHTML = `
+                        <h3 style="margin-bottom:10px;">Comanda liberada</h3>
+                        <p style="color:var(--text-muted); margin-bottom:10px;">Mesa ou local: <strong style="color:var(--text-primary);">${escapeHtml(approvedRequest.tableNumber || 'Nao informado')}</strong></p>
+                        <p style="color:var(--text-muted); margin-bottom:8px;">Agora voce ja pode montar pedidos de itens. Cada pedido segue para aprovacao no administrativo.</p>
+                        <p style="color:var(--text-muted); margin-bottom:0;">Itens liberados: <strong style="color:var(--text-primary);">${summary?.itemCount ?? 0}</strong> | Total atual: <strong style="color:var(--text-primary);">${formatCurrency(summary?.totalAmount || 0)}</strong></p>
+                        ${summary?.hasRecentCloseRequest ? `<div class="hint-box"><strong>Fechamento solicitado:</strong> o administrativo ja recebeu seu pedido${summary.lastCloseRequestAt ? ` em ${new Date(summary.lastCloseRequestAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}.</div>` : ''}
+                        <div class="current-tab-actions">
+                            <a href="pedidos.html?tabId=${approvedRequest.approvedTabId}" class="btn btn-primary" style="display:inline-flex; width:auto; text-decoration:none;">Solicitar itens do bar</a>
+                            <button class="btn btn-ghost" type="button" style="width:auto;" onclick="requestTabClose(${approvedRequest.approvedTabId})" ${summary?.hasRecentCloseRequest ? 'disabled' : ''}>Solicitar fechamento</button>
+                        </div>
+                    `;
+                    newRequestButton.disabled = true;
+                } else if (pendingRequest) {
+                    updateMetrics(historyRequests, null, pendingRequest, null);
+                    currentTabContent.className = 'empty-box';
+                    currentTabContent.textContent = 'Existe uma solicitacao aguardando aprovacao. Aguarde o retorno do administrativo para abrir outra.';
+                    newRequestButton.disabled = true;
+                } else {
+                    updateMetrics(historyRequests, null, false, null);
+                    currentTabContent.className = 'empty-box';
+                    currentTabContent.textContent = 'Nenhuma comanda aprovada neste momento.';
+                    newRequestButton.disabled = false;
+                }
+
+                if (!historyRequests.length) {
+                    return;
+                }
+
+                container.innerHTML = historyRequests.map(request => {
+                    const createdAt = new Date(request.createdAt);
+                    const createdLabel = `${createdAt.toLocaleDateString('pt-BR')} as ${createdAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+                    let statusClass = 'status-pending';
+                    let statusText = 'Pendente';
+
+                    if (request.status === 'Approved' && request.isApprovedTabOpen) {
+                        statusClass = 'status-approved';
+                        statusText = 'Comanda aberta';
+                    } else if (request.status === 'Approved') {
+                        statusClass = 'status-cancelled';
+                        statusText = 'Comanda fechada';
+                    } else if (request.status === 'Rejected') {
+                        statusClass = 'status-rejected';
+                        statusText = 'Recusado';
+                    } else if (request.status === 'CancelledByClient') {
+                        statusClass = 'status-cancelled';
+                        statusText = 'Cancelado';
+                    }
+
+                    const feedback = request.reviewNotes
+                        ? `<div class="hint-box"><strong>Retorno:</strong> ${escapeHtml(request.reviewNotes)}</div>`
+                        : '';
+
+                    const cancelButton = request.status === 'Pending'
+                        ? `<button class="btn btn-ghost" style="width:auto;" onclick="cancelRequest(${request.id})">Cancelar</button>`
+                        : '';
+
+                    const actionButton = request.status === 'Approved' && request.approvedTabId && request.isApprovedTabOpen
+                        ? `<a href="pedidos.html?tabId=${request.approvedTabId}" class="btn btn-primary" style="width:auto; text-decoration:none;">Pedir itens</a>`
+                        : '';
+
+                    const closedFeedback = request.status === 'Approved' && request.approvedTabId && !request.isApprovedTabOpen
+                        ? `<div class="hint-box"><strong>Status atual:</strong> Esta comanda foi fechada${request.approvedTabClosedAt ? ` em ${new Date(request.approvedTabClosedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}.</div>`
+                        : '';
+
+                    return `
+                        <article class="portal-panel request-card">
+                            <div>
+                                <h3 style="margin-bottom:10px;">Comanda solicitada</h3>
+                                <div class="request-meta">
+                                    <span>${createdLabel}</span>
+                                    <span>Mesa ou local: ${escapeHtml(request.tableNumber || 'Nao informado')}</span>
+                                </div>
+                                ${request.requestNotes ? `<p style="margin-top:12px; color:var(--text-muted);">${escapeHtml(request.requestNotes)}</p>` : ''}
+                                ${feedback}
+                                ${closedFeedback}
+                            </div>
+                            <div class="request-actions">
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                                ${actionButton}
+                                ${cancelButton}
+                            </div>
+                        </article>`;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Erro ao carregar comandas.')}</div>`;
+                currentTabContent.className = 'empty-box';
+                currentTabContent.textContent = 'Nao foi possivel consultar sua comanda agora.';
+                historySummary.textContent = 'Nao foi possivel aplicar os filtros agora.';
+                historyCount.textContent = 'Erro';
+            }
+        }
+
+        async function cancelRequest(id) {
+            const confirmed = await portalFeedback.confirm('Tem certeza que deseja cancelar esta solicitacao de comanda?', {
+                title: 'Cancelar solicitacao',
+                confirmText: 'Cancelar solicitacao'
+            });
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                await api.request(`/portal/tab-open-requests/${id}`, 'DELETE');
+                await loadRequests();
+            } catch (error) {
+                await portalFeedback.error(error.message || 'Nao foi possivel cancelar a solicitacao.');
+            }
+        }
+
+        async function requestTabClose(tabId) {
+            const confirmed = await portalFeedback.confirm('Deseja avisar o administrativo para preparar o fechamento desta comanda?', {
+                title: 'Solicitar fechamento',
+                confirmText: 'Enviar aviso'
+            });
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                await api.request('/portal/tab-close-requests', 'POST', { tabId });
+                await loadRequests();
+                await portalFeedback.success('Aviso de fechamento enviado ao administrativo.', {
+                    title: 'Fechamento solicitado'
+                });
+            } catch (error) {
+                await portalFeedback.error(error.message || 'Nao foi possivel solicitar o fechamento da comanda.');
+            }
+        }
+    </script>
+    <script src="js/notifications.js"></script>
+</body>
+</html>

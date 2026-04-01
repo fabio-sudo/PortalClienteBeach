@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Portal - Mensalidades</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="portal-page">
+    <div class="dashboard-layout">
+        <header class="topbar portal-topbar">
+            <div class="portal-topbar-stack">
+                <div class="portal-topbar-head">
+                    <div class="portal-brand">
+                        <div class="portal-brand-mark">AP</div>
+                        <div class="portal-brand-copy">
+                            <strong>Arena Portal</strong>
+                            <span>Financeiro do aluno com vencimentos, atrasos e pagamentos recentes.</span>
+                        </div>
+                    </div>
+                    <div class="portal-top-actions">
+                        <div class="portal-action-group">
+                            <div class="notifications-wrapper" style="position:relative;">
+                                <button id="btnNotifications" class="portal-icon-button" type="button" aria-label="Notificacoes">
+                                    <span class="portal-icon-symbol" aria-hidden="true">&#128276;</span>
+                                    <span id="notificationBadge" class="portal-notification-badge">0</span>
+                                </button>
+                                <div id="notificationsDropdown" class="portal-dropdown">
+                                    <div class="portal-dropdown-header">
+                                        <strong>Notificacoes</strong>
+                                        <a href="#" id="btnMarkAllRead" class="portal-dropdown-link">Marcar lidas</a>
+                                    </div>
+                                    <div id="notificationsList" class="portal-dropdown-body">
+                                        <p style="color:var(--text-muted); text-align:center; font-size:0.9rem; margin-top:10px;">Carregando...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn-ghost" onclick="logout()">
+                                <span aria-hidden="true">&#x21AA;</span>
+                                <span>Sair</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <nav class="portal-nav-tabs" aria-label="Menu do portal">
+                    <a href="dashboard.html" class="portal-nav-link">Visao geral</a>
+                    <a href="agendamentos.html" class="portal-nav-link">Agendamentos</a>
+                    <a href="comandas.html" class="portal-nav-link">Comandas</a>
+                    <a href="mensalidades.html" class="portal-nav-link active">Mensalidades</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section id="blockedPanel" class="portal-panel" style="display:none;">
+                <div class="portal-section-title">Acesso Restrito</div>
+                <h1 style="font-size:clamp(2.2rem,4vw,3.4rem); line-height:0.94; margin-bottom:0.9rem;">Mensalidades liberadas apenas para alunos</h1>
+                <p style="color:var(--text-muted); line-height:1.8; max-width:760px;">
+                    Este login esta vinculado ao perfil de cliente. Para acompanhar vencimentos, pagamentos e atrasos, o administrador precisa conectar este acesso a um cadastro de aluno com plano recorrente.
+                </p>
+
+                <div class="portal-kpi-grid" style="margin-top:1.5rem;">
+                    <div class="portal-kpi-card">
+                        <span>Perfil atual</span>
+                        <strong>Cliente</strong>
+                    </div>
+                    <div class="portal-kpi-card">
+                        <span>Area liberada</span>
+                        <strong>Reservas e comandas</strong>
+                    </div>
+                    <div class="portal-kpi-card">
+                        <span>Proximo passo</span>
+                        <strong>Solicitar vinculacao</strong>
+                    </div>
+                </div>
+
+                <p style="color:var(--text-muted); margin-top:18px;">Voce sera redirecionado ao dashboard em alguns segundos.</p>
+            </section>
+
+            <section id="billingContent">
+                <section class="portal-hero-grid">
+                    <div class="portal-panel">
+                        <div class="portal-section-title">Financeiro do Aluno</div>
+                        <h1 style="font-size:clamp(2.2rem,4vw,3.4rem); line-height:0.94; margin-bottom:0.9rem;">Controle completo das mensalidades</h1>
+                        <p id="heroSubtitle" style="color:var(--text-muted); line-height:1.75;">
+                            Carregando a situacao financeira vinculada ao seu acesso.
+                        </p>
+
+                        <div class="portal-kpi-grid">
+                            <div class="portal-kpi-card">
+                                <span>Plano atual</span>
+                                <strong id="currentPlan">-</strong>
+                            </div>
+                            <div class="portal-kpi-card">
+                                <span>Proxima cobranca</span>
+                                <strong id="nextBilling">-</strong>
+                            </div>
+                            <div class="portal-kpi-card">
+                                <span>Status</span>
+                                <strong id="billingStatus">-</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="portal-panel">
+                        <div class="portal-section-title">Resumo</div>
+                        <div class="portal-list">
+                            <div class="portal-list-item">
+                                <div>
+                                    <strong>Conta vinculada</strong>
+                                    <span id="accountSummary">Carregando dados da conta...</span>
+                                </div>
+                            </div>
+                            <div class="portal-list-item">
+                                <div>
+                                    <strong>Pagamentos pendentes</strong>
+                                    <span>Cobrancas aguardando regularizacao.</span>
+                                </div>
+                                <span class="portal-pill warning" id="pendingCount">0</span>
+                            </div>
+                            <div class="portal-list-item">
+                                <div>
+                                    <strong>Pagamentos atrasados</strong>
+                                    <span>Titulos ja vencidos.</span>
+                                </div>
+                                <span class="portal-pill danger" id="overdueCount">0</span>
+                            </div>
+                            <div class="portal-list-item">
+                                <div>
+                                    <strong>Saldo em aberto</strong>
+                                    <span>Mensalidades pendentes ou atrasadas.</span>
+                                </div>
+                                <strong id="openBalance">R$ 0,00</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="portal-filter-head">
+                        <div class="portal-filter-copy">
+                            <div class="portal-section-title">Filtros Financeiros</div>
+                            <p>O financeiro abre no mes atual por padrao. Se precisar, voce pode alternar para um periodo especifico ou consultar todo o historico.</p>
+                        </div>
+                        <span class="portal-pill info" id="paymentsFilterCount">0 registros</span>
+                    </div>
+
+                    <div class="portal-toggle-group" id="billingScopeToggle" style="margin-top:1rem;">
+                        <button type="button" class="portal-toggle-button active" data-scope="month">Do mes</button>
+                        <button type="button" class="portal-toggle-button" data-scope="period">Por periodo</button>
+                        <button type="button" class="portal-toggle-button" data-scope="all">Todas</button>
+                    </div>
+
+                    <div class="portal-toggle-group" id="billingStatusToggle" style="margin-top:0.85rem;">
+                        <button type="button" class="portal-toggle-button active" data-status="all">Todos</button>
+                        <button type="button" class="portal-toggle-button" data-status="pending">Pendentes</button>
+                        <button type="button" class="portal-toggle-button" data-status="overdue">Atrasadas</button>
+                        <button type="button" class="portal-toggle-button" data-status="paid">Pagas</button>
+                    </div>
+
+                    <div class="portal-filter-grid" style="margin-top:1rem;">
+                        <div class="input-group">
+                            <label for="billingFromDate">Data inicial</label>
+                            <input type="date" id="billingFromDate">
+                        </div>
+                        <div class="input-group">
+                            <label for="billingToDate">Data final</label>
+                            <input type="date" id="billingToDate">
+                        </div>
+                        <div class="input-group">
+                            <label for="billingStatusFilter">Status</label>
+                            <select id="billingStatusFilter">
+                                <option value="all">Todos</option>
+                                <option value="pending">Pendentes</option>
+                                <option value="overdue">Atrasados</option>
+                                <option value="paid">Pagos</option>
+                                <option value="cancelled">Cancelados</option>
+                            </select>
+                        </div>
+                        <div class="portal-filter-actions">
+                            <button type="button" class="btn btn-ghost" id="btnResetBillingFilters" style="width:auto;">Voltar ao mes</button>
+                            <button type="button" class="btn btn-primary" id="btnApplyBillingFilters" style="width:auto;">Atualizar</button>
+                        </div>
+                    </div>
+
+                    <div class="portal-filter-summary" id="billingFilterSummary" style="margin-top:1rem;">Carregando filtros...</div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="portal-section-title">Historico de pagamentos</div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08); color:var(--text-muted); font-size:0.78rem; text-transform:uppercase;">Vencimento</th>
+                                    <th style="text-align:left; padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08); color:var(--text-muted); font-size:0.78rem; text-transform:uppercase;">Plano</th>
+                                    <th style="text-align:left; padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08); color:var(--text-muted); font-size:0.78rem; text-transform:uppercase;">Valor</th>
+                                    <th style="text-align:left; padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08); color:var(--text-muted); font-size:0.78rem; text-transform:uppercase;">Status</th>
+                                    <th style="text-align:left; padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08); color:var(--text-muted); font-size:0.78rem; text-transform:uppercase;">Pagamento</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentsTable">
+                                <tr>
+                                    <td colspan="5" style="padding:1.5rem; color:var(--text-muted); text-align:center;">Carregando pagamentos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const formatCurrency = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const formatDate = value => value ? new Date(value).toLocaleDateString('pt-BR') : '-';
+        const getLocalDateInputValue = (value = new Date()) => {
+            const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+            return local.toISOString().split('T')[0];
+        };
+        const getMonthStartInputValue = () => {
+            const now = new Date();
+            return getLocalDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1));
+        };
+        const getBillingFilters = () => ({
+            scope: document.querySelector('#billingScopeToggle .portal-toggle-button.active')?.dataset.scope || 'month',
+            fromDate: document.getElementById('billingFromDate').value,
+            toDate: document.getElementById('billingToDate').value,
+            status: document.getElementById('billingStatusFilter').value
+        });
+        const buildBillingQuery = filters => {
+            const query = new URLSearchParams();
+
+            if (filters.scope) {
+                query.set('scope', filters.scope);
+            }
+
+            if (filters.scope === 'period') {
+                if (filters.fromDate) {
+                    query.set('fromDate', filters.fromDate);
+                }
+
+                if (filters.toDate) {
+                    query.set('toDate', filters.toDate);
+                }
+            }
+
+            if (filters.status && filters.status !== 'all') {
+                query.set('status', filters.status);
+            }
+
+            return query.toString();
+        };
+        const getBillingSummaryLabel = filters => {
+            if (filters.scope === 'month') {
+                return 'mensalidades do mes atual';
+            }
+
+            if (filters.scope === 'all') {
+                return 'todas as mensalidades';
+            }
+
+            const fromLabel = filters.fromDate ? new Date(`${filters.fromDate}T00:00:00`).toLocaleDateString('pt-BR') : 'o inicio';
+            const toLabel = filters.toDate ? new Date(`${filters.toDate}T00:00:00`).toLocaleDateString('pt-BR') : 'hoje';
+            return `mensalidades de ${fromLabel} ate ${toLabel}`;
+        };
+        const getBillingStatusLabel = status => ({
+            all: 'todos os status',
+            pending: 'pendentes',
+            overdue: 'atrasadas',
+            paid: 'pagas',
+            cancelled: 'canceladas'
+        }[status] || 'todos os status');
+
+        function paymentBadge(status) {
+            const normalized = String(status || '').toLowerCase();
+            if (normalized.includes('paid')) return '<span class="portal-pill success">Pago</span>';
+            if (normalized.includes('overdue')) return '<span class="portal-pill danger">Atrasado</span>';
+            if (normalized.includes('cancel')) return '<span class="portal-pill info">Cancelado</span>';
+            return '<span class="portal-pill warning">Pendente</span>';
+        }
+
+        function blockCustomerOnlyAccess() {
+            document.getElementById('billingContent').style.display = 'none';
+            document.getElementById('blockedPanel').style.display = 'block';
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 2600);
+        }
+
+        function setActiveBillingScope(scope) {
+            document.querySelectorAll('#billingScopeToggle .portal-toggle-button').forEach(button => {
+                button.classList.toggle('active', button.dataset.scope === scope);
+            });
+
+            const periodMode = scope === 'period';
+            document.getElementById('billingFromDate').disabled = !periodMode;
+            document.getElementById('billingToDate').disabled = !periodMode;
+        }
+
+        function setActiveBillingStatus(status) {
+            document.querySelectorAll('#billingStatusToggle .portal-toggle-button').forEach(button => {
+                button.classList.toggle('active', button.dataset.status === status);
+            });
+
+            document.getElementById('billingStatusFilter').value = status;
+        }
+
+        async function loadBillingOverview(preloadedBilling = null) {
+            const filters = getBillingFilters();
+            const query = buildBillingQuery(filters);
+            const billing = preloadedBilling || await api.request(`/portal/profile/billing?${query}`);
+
+            document.getElementById('heroSubtitle').textContent = `Aluno vinculado: ${billing.studentName}. Acompanhe vencimentos, pagamentos e atrasos em tempo real.`;
+            document.getElementById('currentPlan').textContent = billing.planName || 'Sem plano';
+            document.getElementById('nextBilling').textContent = formatDate(billing.nextBillingDate);
+            document.getElementById('billingStatus').textContent = billing.billingStatus || 'Sem status';
+            document.getElementById('pendingCount').textContent = billing.pendingPayments;
+            document.getElementById('overdueCount').textContent = billing.overduePayments;
+            document.getElementById('openBalance').textContent = formatCurrency(billing.outstandingAmount);
+            document.getElementById('paymentsFilterCount').textContent = `${billing.payments.length} registro${billing.payments.length === 1 ? '' : 's'}`;
+            document.getElementById('billingFilterSummary').textContent = `Mostrando ${getBillingSummaryLabel(filters)} com status ${getBillingStatusLabel(filters.status)}.`;
+
+            if (!billing.payments.length) {
+                document.getElementById('paymentsTable').innerHTML = `
+                    <tr>
+                        <td colspan="5" style="padding:2rem; text-align:center; color:var(--text-muted);">
+                            Nenhuma mensalidade encontrada para os filtros selecionados.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            document.getElementById('paymentsTable').innerHTML = billing.payments.map(payment => `
+                <tr>
+                    <td style="padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08);">${formatDate(payment.dueDate)}</td>
+                    <td style="padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08);">${payment.planName || '-'}</td>
+                    <td style="padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08);">${formatCurrency(payment.amount)}</td>
+                    <td style="padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08);">${paymentBadge(payment.status)}</td>
+                    <td style="padding:0.9rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.08);">${formatDate(payment.paymentDate)}</td>
+                </tr>
+            `).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('portal_user')) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const today = getLocalDateInputValue();
+            document.getElementById('billingFromDate').value = getMonthStartInputValue();
+            document.getElementById('billingToDate').value = today;
+            setActiveBillingScope('month');
+            setActiveBillingStatus('all');
+
+            try {
+                const [profile, billing] = await Promise.all([
+                    api.request('/portal/profile/me'),
+                    api.request('/portal/profile/billing?scope=month').catch(() => null)
+                ]);
+
+                const hasBillingAccess = !!profile.hasStudentBillingAccess && !!billing?.hasStudentLink;
+                if (!hasBillingAccess) {
+                    blockCustomerOnlyAccess();
+                    return;
+                }
+
+                document.getElementById('accountSummary').textContent = `${profile.name} | Login: ${profile.email || profile.phone || profile.username}`;
+                await loadBillingOverview(billing);
+
+                document.querySelectorAll('#billingScopeToggle .portal-toggle-button').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        setActiveBillingScope(button.dataset.scope);
+                        await loadBillingOverview();
+                    });
+                });
+
+                document.querySelectorAll('#billingStatusToggle .portal-toggle-button').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        setActiveBillingStatus(button.dataset.status);
+                        await loadBillingOverview();
+                    });
+                });
+
+                document.getElementById('btnApplyBillingFilters').addEventListener('click', loadBillingOverview);
+                document.getElementById('btnResetBillingFilters').addEventListener('click', async () => {
+                    document.getElementById('billingFromDate').value = getMonthStartInputValue();
+                    document.getElementById('billingToDate').value = getLocalDateInputValue();
+                    document.getElementById('billingStatusFilter').value = 'all';
+                    setActiveBillingScope('month');
+                    setActiveBillingStatus('all');
+                    await loadBillingOverview();
+                });
+                document.getElementById('billingStatusFilter').addEventListener('change', async event => {
+                    setActiveBillingStatus(event.target.value);
+                    await loadBillingOverview();
+                });
+            } catch (error) {
+                console.error(error);
+                document.getElementById('heroSubtitle').textContent = 'Nao foi possivel carregar as mensalidades agora.';
+                document.getElementById('billingFilterSummary').textContent = 'Nao foi possivel aplicar os filtros agora.';
+                document.getElementById('paymentsFilterCount').textContent = 'Erro';
+                document.getElementById('paymentsTable').innerHTML = `
+                    <tr>
+                        <td colspan="5" style="padding:2rem; text-align:center; color:var(--text-muted);">
+                            ${error.message}
+                        </td>
+                    </tr>`;
+            }
+        });
+    </script>
+    <script src="js/notifications.js"></script>
+</body>
+</html>

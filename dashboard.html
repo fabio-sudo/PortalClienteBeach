@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Portal - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="portal-page">
+    <div class="dashboard-layout">
+        <header class="topbar portal-topbar">
+            <div class="portal-topbar-stack">
+                <div class="portal-topbar-head">
+                        <div class="portal-brand">
+                            <div class="portal-brand-mark">AP</div>
+                            <div class="portal-brand-copy">
+                                <strong>Arena Portal</strong>
+                                <span id="userNameDisplay">Reservas, comandas e acompanhamento financeiro em um so lugar.</span>
+                            </div>
+                        </div>
+                    <div class="portal-top-actions">
+                        <div class="portal-action-group">
+                            <div class="notifications-wrapper" style="position:relative;">
+                                <button id="btnNotifications" class="portal-icon-button" type="button" aria-label="Notificacoes">
+                                    <span class="portal-icon-symbol" aria-hidden="true">&#128276;</span>
+                                    <span id="notificationBadge" class="portal-notification-badge">0</span>
+                                </button>
+                                <div id="notificationsDropdown" class="portal-dropdown">
+                                    <div class="portal-dropdown-header">
+                                        <strong>Notificacoes</strong>
+                                        <a href="#" id="btnMarkAllRead" class="portal-dropdown-link">Marcar lidas</a>
+                                    </div>
+                                    <div id="notificationsList" class="portal-dropdown-body">
+                                        <p style="color:var(--text-muted); text-align:center; font-size:0.9rem; margin-top:10px;">Carregando...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn-ghost" onclick="logout()">
+                                <span aria-hidden="true">&#x21AA;</span>
+                                <span>Sair</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <nav class="portal-nav-tabs" aria-label="Menu do portal">
+                    <a href="dashboard.html" class="portal-nav-link active">Visao geral</a>
+                    <a href="agendamentos.html" class="portal-nav-link">Agendamentos</a>
+                    <a href="comandas.html" class="portal-nav-link">Comandas</a>
+                    <a href="mensalidades.html" class="portal-nav-link">Mensalidades</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="main-content portal-dashboard-main">
+            <section class="portal-hero-grid">
+                <div class="portal-panel portal-hero-panel">
+                    <div class="portal-section-title">Visao Geral</div>
+                    <h1 class="portal-hero-title">Ola, <span id="welcomeName">Visitante</span>.</h1>
+                    <p id="heroDescription" class="portal-hero-copy">Carregando seu resumo de acesso e relacionamento com a Arena.</p>
+
+                    <div class="portal-kpi-grid">
+                        <div class="portal-kpi-card">
+                            <span>Canal de login</span>
+                            <strong id="kpiLogin">-</strong>
+                        </div>
+                        <div class="portal-kpi-card">
+                            <span>Conta vinculada</span>
+                            <strong id="kpiAccountLink">-</strong>
+                        </div>
+                        <div class="portal-kpi-card">
+                            <span>Acesso financeiro</span>
+                            <strong id="kpiBillingState">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="financePanel" class="portal-panel portal-side-panel">
+                    <div class="portal-section-title">Financeiro</div>
+                    <div class="portal-list">
+                        <div class="portal-list-item">
+                            <div>
+                                <strong>Plano atual</strong>
+                                <span id="summaryPlan">Carregando...</span>
+                            </div>
+                            <span class="portal-pill info" id="summaryBillingBadge">Portal ativo</span>
+                        </div>
+                        <div class="portal-list-item">
+                            <div>
+                                <strong>Proxima cobranca</strong>
+                                <span id="summaryNextBilling">-</span>
+                            </div>
+                            <strong id="summaryOutstanding">R$ 0,00</strong>
+                        </div>
+                        <div class="portal-list-item">
+                            <div>
+                                <strong>Recebido neste mes</strong>
+                                <span>Pagamentos concluidos</span>
+                            </div>
+                            <strong id="summaryPaidMonth">R$ 0,00</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="portal-grid-2 portal-dashboard-links">
+                <a href="agendamentos.html" class="portal-card-link portal-card-stretch">
+                    <div class="portal-panel portal-feature-panel">
+                        <div class="portal-section-title">Quadras</div>
+                        <h3 class="portal-feature-title">Meus agendamentos</h3>
+                        <p class="portal-feature-copy">Solicite horarios, acompanhe aprovacoes e veja o historico das reservas ja enviadas.</p>
+                    </div>
+                </a>
+                <a href="comandas.html" class="portal-card-link portal-card-stretch">
+                    <div class="portal-panel portal-feature-panel">
+                        <div class="portal-section-title">Bar e Comandas</div>
+                        <h3 class="portal-feature-title">Minha comanda</h3>
+                        <p class="portal-feature-copy">Abra comanda, envie pedidos ao bar e acompanhe o status sem depender do balcao.</p>
+                    </div>
+                </a>
+            </section>
+
+            <section id="studentBillingSection" class="portal-grid-2 portal-dashboard-lower">
+                <div class="portal-panel portal-dashboard-panel">
+                    <div class="portal-section-title">Mensalidades</div>
+                    <div id="billingHighlights" class="portal-list">
+                        <div class="portal-list-item">
+                            <div>
+                                <strong>Carregando resumo</strong>
+                                <span>Estamos consultando seus dados financeiros.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="portal-panel portal-dashboard-panel">
+                    <div class="portal-section-title">Atalhos</div>
+                    <div class="portal-list">
+                        <div class="portal-list-item">
+                            <div>
+                                <strong>Mensalidades completas</strong>
+                                <span>Veja vencimentos, status e historico detalhado.</span>
+                            </div>
+                            <a href="mensalidades.html" class="portal-pill info" style="text-decoration:none;">Abrir</a>
+                        </div>
+                        <div class="portal-list-item">
+                            <div>
+                                <strong>Pedidos do bar</strong>
+                                <span>Use quando ja existir uma comanda aprovada.</span>
+                            </div>
+                            <a href="comandas.html" class="portal-pill info" style="text-decoration:none;">Acessar</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="customerOnlySection" class="portal-panel portal-customer-panel" style="display:none;">
+                <div class="portal-customer-grid">
+                    <div>
+                        <div class="portal-section-title">Acesso do Cliente</div>
+                        <h3 class="portal-feature-title">Reservas e comandas ativas</h3>
+                        <p class="portal-feature-copy">
+                            Este acesso esta liberado para agendamentos e comandas. A area de mensalidades fica disponivel somente quando o portal estiver vinculado a um aluno.
+                        </p>
+                    </div>
+                    <div class="portal-status-grid">
+                        <div class="portal-status-card">
+                            <span>Reservas</span>
+                            <strong>Liberadas</strong>
+                        </div>
+                        <div class="portal-status-card">
+                            <span>Comandas</span>
+                            <strong>Disponiveis</strong>
+                        </div>
+                        <div class="portal-status-card">
+                            <span>Financeiro</span>
+                            <strong>Mediante vinculo</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const formatCurrency = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const formatDate = value => value ? new Date(value).toLocaleDateString('pt-BR') : '-';
+        const getStoredPortalUser = () => {
+            try {
+                return JSON.parse(localStorage.getItem('portal_user') || 'null');
+            } catch {
+                return null;
+            }
+        };
+
+        function applyPortalUserSnapshot(user) {
+            const displayName = user?.name || user?.username || 'Visitante';
+            const hasBillingAccess = !!user?.studentId;
+
+            document.getElementById('userNameDisplay').textContent = hasBillingAccess
+                ? `${displayName}, acompanhe reservas, comandas e mensalidades em tempo real.`
+                : `${displayName}, acompanhe reservas e comandas do seu portal.`;
+            document.getElementById('welcomeName').textContent = displayName.split(' ')[0];
+            document.getElementById('kpiLogin').textContent = user?.email || user?.phone || 'Conta ativa';
+            document.getElementById('kpiAccountLink').textContent = hasBillingAccess ? 'Aluno + portal' : 'Cliente + portal';
+            document.getElementById('kpiBillingState').textContent = hasBillingAccess ? 'Disponivel' : 'Bloqueado';
+
+            return hasBillingAccess;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const sessionUser = getStoredPortalUser();
+            if (!sessionUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const hasBillingAccess = applyPortalUserSnapshot(sessionUser);
+            document.body.classList.toggle('customer-mode', !hasBillingAccess);
+
+            if (!hasBillingAccess) {
+                document.getElementById('heroDescription').textContent = 'Seu acesso esta ativo para reservas e comandas. Mensalidades aparecem apenas quando este portal estiver vinculado a um aluno.';
+                document.getElementById('financePanel').style.display = 'none';
+                document.getElementById('studentBillingSection').style.display = 'none';
+                document.getElementById('customerOnlySection').style.display = 'block';
+                return;
+            }
+
+            try {
+                const billing = await api.request('/portal/profile/billing').catch(() => null);
+                if (!billing?.hasStudentLink) {
+                    throw new Error('Resumo financeiro indisponivel.');
+                }
+
+                document.getElementById('heroDescription').textContent = 'Seu acesso ja esta vinculado ao cadastro financeiro do aluno. Voce pode acompanhar mensalidades, vencimentos e historico.';
+                document.getElementById('summaryPlan').textContent = billing.planName || 'Sem plano';
+                document.getElementById('summaryNextBilling').textContent = formatDate(billing.nextBillingDate);
+                document.getElementById('summaryOutstanding').textContent = formatCurrency(billing.outstandingAmount);
+                document.getElementById('summaryPaidMonth').textContent = formatCurrency(billing.paidThisMonth);
+                document.getElementById('summaryBillingBadge').textContent = billing.billingStatus || 'Ativo';
+
+                document.getElementById('billingHighlights').innerHTML = `
+                    <div class="portal-list-item">
+                        <div>
+                            <strong>Pagamentos pendentes</strong>
+                            <span>Boletos ou cobrancas aguardando regularizacao.</span>
+                        </div>
+                        <span class="portal-pill ${billing.pendingPayments > 0 ? 'warning' : 'success'}">${billing.pendingPayments}</span>
+                    </div>
+                    <div class="portal-list-item">
+                        <div>
+                            <strong>Pagamentos atrasados</strong>
+                            <span>Titulos ja vencidos que ainda nao foram pagos.</span>
+                        </div>
+                        <span class="portal-pill ${billing.overduePayments > 0 ? 'danger' : 'success'}">${billing.overduePayments}</span>
+                    </div>
+                    <div class="portal-list-item">
+                        <div>
+                            <strong>Saldo em aberto</strong>
+                            <span>Somatorio das mensalidades pendentes ou atrasadas.</span>
+                        </div>
+                        <strong>${formatCurrency(billing.outstandingAmount)}</strong>
+                    </div>`;
+            } catch (error) {
+                console.error(error);
+                document.getElementById('heroDescription').textContent = 'Nao foi possivel carregar o resumo do portal agora.';
+            }
+        });
+    </script>
+    <script src="js/notifications.js"></script>
+</body>
+</html>

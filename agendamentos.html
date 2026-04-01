@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Portal - Meus Agendamentos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .page-shell { min-height: 100vh; padding: 2rem; }
+        .page-wrap { max-width: 1180px; margin: 0 auto; }
+        .toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; }
+        .toolbar-actions { display:flex; align-items:center; gap:12px; }
+        .page-grid { display:grid; gap:24px; }
+        .panel-grid { display:grid; grid-template-columns:1.35fr .95fr; gap:24px; }
+        .request-list { display:grid; gap:16px; }
+        .request-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:20px; align-items:center; }
+        .request-meta { display:flex; flex-wrap:wrap; gap:12px; color:var(--text-muted); font-size:.92rem; }
+        .request-actions { display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
+        .status-badge { padding:.42rem .9rem; border-radius:999px; font-size:.76rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+        .status-pending { background:rgba(245,158,11,.16); color:#fcd34d; }
+        .status-approved { background:rgba(16,185,129,.16); color:#6ee7b7; }
+        .status-rejected { background:rgba(239,68,68,.16); color:#fca5a5; }
+        .status-cancelled { background:rgba(148,163,184,.16); color:#cbd5e1; }
+        .slot-list { display:grid; gap:10px; }
+        .slot-item { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); }
+        .empty-box { padding:28px 18px; text-align:center; color:var(--text-muted); border-radius:18px; border:1px dashed rgba(255,255,255,.12); background:rgba(255,255,255,.02); }
+        .hint-box { margin-top:16px; padding:14px 16px; border-radius:16px; background:rgba(255,107,44,.09); border:1px solid rgba(255,107,44,.18); color:var(--text-soft); }
+        .form-actions { display:flex; justify-content:flex-end; gap:12px; margin-top:16px; }
+        .court-agenda { display:grid; gap:14px; }
+        .court-agenda-group { padding:16px; border-radius:20px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); }
+        .court-agenda-group h4 { margin-bottom:12px; font-size:1rem; }
+        .agenda-slot { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:10px 0; border-top:1px solid rgba(255,255,255,.06); }
+        .agenda-slot:first-child { border-top:none; padding-top:0; }
+        .agenda-slot strong { display:block; }
+        .agenda-slot span { color:var(--text-muted); font-size:.88rem; }
+        @media (max-width: 900px) {
+            .page-shell { padding: 1rem; }
+            .toolbar, .panel-grid, .request-card { display:grid; grid-template-columns:1fr; }
+            .toolbar-actions { justify-content:flex-start; flex-wrap:wrap; }
+            .request-actions { align-items:flex-start; }
+        }
+    </style>
+</head>
+<body class="portal-page">
+    <div class="page-shell">
+        <div class="page-wrap">
+            <header class="topbar portal-topbar">
+                <div class="portal-topbar-stack">
+                    <div class="portal-topbar-head">
+                        <div class="portal-brand">
+                            <div class="portal-brand-mark">AP</div>
+                            <div class="portal-brand-copy">
+                                <strong>Arena Portal</strong>
+                                <span id="userNameDisplay">Carregando agenda do portal...</span>
+                            </div>
+                        </div>
+                        <div class="portal-top-actions">
+                            <div class="portal-action-group">
+                                <div class="notifications-wrapper" style="position:relative;">
+                                    <button id="btnNotifications" class="portal-icon-button" type="button" aria-label="Notificacoes">
+                                        <span class="portal-icon-symbol" aria-hidden="true">&#128276;</span>
+                                        <span id="notificationBadge" class="portal-notification-badge">0</span>
+                                    </button>
+                                    <div id="notificationsDropdown" class="portal-dropdown">
+                                        <div class="portal-dropdown-header">
+                                            <strong>Notificacoes</strong>
+                                            <a href="#" id="btnMarkAllRead" class="portal-dropdown-link">Marcar lidas</a>
+                                        </div>
+                                        <div id="notificationsList" class="portal-dropdown-body">
+                                            <p style="color:var(--text-muted); text-align:center; font-size:0.9rem; margin-top:10px;">Carregando...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn-ghost" onclick="logout()">
+                                    <span aria-hidden="true">&#x21AA;</span>
+                                    <span>Sair</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <nav class="portal-nav-tabs" aria-label="Menu do portal">
+                        <a href="dashboard.html" class="portal-nav-link">Visao geral</a>
+                        <a href="agendamentos.html" class="portal-nav-link active">Agendamentos</a>
+                        <a href="comandas.html" class="portal-nav-link">Comandas</a>
+                        <a href="mensalidades.html" class="portal-nav-link">Mensalidades</a>
+                    </nav>
+                </div>
+            </header>
+
+            <main class="page-grid">
+                <section class="portal-panel">
+                    <div class="toolbar">
+                        <div>
+                            <div class="portal-section-title">Quadras</div>
+                            <h1 style="font-size:clamp(2rem,4vw,3rem); line-height:.98;">Meus Agendamentos</h1>
+                            <p style="color:var(--text-muted); margin-top:10px;">Solicite horarios com mais seguranca vendo os periodos ja ocupados e a agenda ativa do sistema na data escolhida.</p>
+                        </div>
+                        <div class="toolbar-actions">
+                            <button id="btnNewRequest" class="btn btn-primary glow-effect" style="width:auto;">+ Solicitar Horario</button>
+                        </div>
+                    </div>
+
+                    <div id="newRequestPanel" class="portal-panel" style="display:none; margin-top:12px; background:rgba(255,255,255,.03);">
+                        <div class="panel-grid">
+                            <div>
+                                <h3 style="margin-bottom:16px;">Nova solicitacao</h3>
+                                <form id="requestForm" class="auth-form">
+                                    <div class="form-grid">
+                                        <div class="input-group">
+                                            <label for="courtId">Quadra</label>
+                                            <select id="courtId" required>
+                                                <option value="">Carregando quadras...</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group">
+                                            <label for="reqDate">Data</label>
+                                            <input type="date" id="reqDate" required>
+                                        </div>
+                                        <div class="input-group">
+                                            <label for="startTime">Hora inicial</label>
+                                            <input type="time" id="startTime" required>
+                                        </div>
+                                        <div class="input-group">
+                                            <label for="endTime">Hora final</label>
+                                            <input type="time" id="endTime" required>
+                                        </div>
+                                    </div>
+                                    <div class="input-group" style="margin-top:16px;">
+                                        <label for="reqNotes">Observacoes</label>
+                                        <input type="text" id="reqNotes" placeholder="Ex: preciso de iluminacao reforcada.">
+                                    </div>
+                                    <div class="hint-box">
+                                        Antes de enviar, confira ao lado os horarios ocupados da quadra selecionada. Logo abaixo, voce tambem acompanha a agenda ativa do sistema no mesmo dia.
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="button" class="btn btn-ghost" id="btnCancelForm" style="width:auto;">Cancelar</button>
+                                        <button type="submit" class="btn btn-primary" style="width:auto;">Enviar solicitacao</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div>
+                                <div class="portal-section-title">Disponibilidade da Quadra</div>
+                                <h3 id="availabilityTitle" style="margin-bottom:12px;">Escolha uma quadra e uma data</h3>
+                                <div id="availabilityContent" class="empty-box">Nenhum horario carregado ainda.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="toolbar">
+                        <div>
+                            <div class="portal-section-title">Agenda Ativa</div>
+                            <h3 id="systemAgendaTitle">Reservas confirmadas do dia</h3>
+                        </div>
+                        <span class="portal-pill info" id="systemAgendaCount">0 reservas</span>
+                    </div>
+                    <div id="systemAgendaContainer" class="court-agenda">
+                        <div class="empty-box">Carregando agenda ativa...</div>
+                    </div>
+                </section>
+
+                <section class="portal-panel portal-filter-panel">
+                    <div class="portal-filter-head">
+                        <div class="portal-filter-copy">
+                            <div class="portal-section-title">Filtros do Historico</div>
+                            <p>Os agendamentos ja abrem filtrados em hoje. Se quiser, troque o periodo ou foque apenas em solicitacoes aprovadas, pendentes, recusadas ou canceladas.</p>
+                        </div>
+                        <span class="portal-pill info" id="historyFilterCount">0 resultados</span>
+                    </div>
+
+                    <div class="portal-filter-grid">
+                        <div class="input-group">
+                            <label for="filterFromDate">Data inicial</label>
+                            <input type="date" id="filterFromDate">
+                        </div>
+                        <div class="input-group">
+                            <label for="filterToDate">Data final</label>
+                            <input type="date" id="filterToDate">
+                        </div>
+                        <div class="input-group">
+                            <label for="filterStatus">Status</label>
+                            <select id="filterStatus">
+                                <option value="all">Todos</option>
+                                <option value="approved">Aprovados</option>
+                                <option value="pending">Pendentes</option>
+                                <option value="rejected">Recusados</option>
+                                <option value="cancelled">Cancelados</option>
+                            </select>
+                        </div>
+                        <div class="portal-filter-actions">
+                            <button type="button" class="btn btn-ghost" id="btnResetFilters" style="width:auto;">Hoje</button>
+                            <button type="button" class="btn btn-primary" id="btnApplyFilters" style="width:auto;">Aplicar filtros</button>
+                        </div>
+                    </div>
+
+                    <div class="portal-filter-summary" id="historyFilterSummary">Carregando filtros...</div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="portal-section-title">Historico</div>
+                    <div id="requestsContainer" class="request-list">
+                        <div class="empty-box">Buscando suas solicitacoes...</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentReservedSlots = [];
+        let portalReservationRefreshTimer = null;
+        const getLocalDateInputValue = (value = new Date()) => {
+            const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+            return local.toISOString().split('T')[0];
+        };
+        const buildQueryString = filters => {
+            const query = new URLSearchParams();
+
+            if (filters.fromDate) {
+                query.set('fromDate', filters.fromDate);
+            }
+
+            if (filters.toDate) {
+                query.set('toDate', filters.toDate);
+            }
+
+            if (filters.status && filters.status !== 'all') {
+                query.set('status', filters.status);
+            }
+
+            const serialized = query.toString();
+            return serialized ? `?${serialized}` : '';
+        };
+        const getHistoryFilters = () => ({
+            fromDate: document.getElementById('filterFromDate').value,
+            toDate: document.getElementById('filterToDate').value,
+            status: document.getElementById('filterStatus').value
+        });
+        const getStatusLabel = status => ({
+            all: 'todos os agendamentos',
+            approved: 'agendamentos aprovados',
+            pending: 'agendamentos pendentes',
+            rejected: 'agendamentos recusados',
+            cancelled: 'agendamentos cancelados'
+        }[status] || 'todos os agendamentos');
+        const formatPeriodLabel = (fromDate, toDate) => {
+            if (!fromDate && !toDate) {
+                return 'todo o periodo';
+            }
+
+            const fromLabel = fromDate ? new Date(`${fromDate}T00:00:00`).toLocaleDateString('pt-BR') : 'o inicio';
+            const toLabel = toDate ? new Date(`${toDate}T00:00:00`).toLocaleDateString('pt-BR') : 'hoje';
+            return `de ${fromLabel} ate ${toLabel}`;
+        };
+        const scheduleRealtimeReservationRefresh = () => {
+            if (portalReservationRefreshTimer) {
+                window.clearTimeout(portalReservationRefreshTimer);
+            }
+
+            portalReservationRefreshTimer = window.setTimeout(() => {
+                Promise.all([loadRequests(), loadAvailability(), loadSystemReservations()])
+                    .catch(error => console.warn('Nao foi possivel atualizar os agendamentos do portal.', error));
+            }, 250);
+        };
+        const handlePortalReservationNotification = event => {
+            const notification = event?.detail || null;
+            const relatedEntityType = String(notification?.relatedEntityType || '').toLowerCase();
+
+            if (relatedEntityType && relatedEntityType !== 'reservation') {
+                return;
+            }
+
+            scheduleRealtimeReservationRefresh();
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('portal_user')) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const portalUser = JSON.parse(localStorage.getItem('portal_user') || 'null');
+            document.getElementById('userNameDisplay').textContent =
+                portalUser?.name
+                    ? `${portalUser.name.split(' ')[0]}, acompanhe os horarios livres e ocupados.`
+                    : 'Acompanhe os horarios livres e ocupados da arena.';
+
+            const today = getLocalDateInputValue();
+            document.getElementById('reqDate').min = today;
+            document.getElementById('reqDate').value = today;
+            document.getElementById('filterFromDate').value = today;
+            document.getElementById('filterToDate').value = today;
+
+            await loadCourts();
+            await Promise.all([loadRequests(), loadAvailability(), loadSystemReservations()]);
+            window.addEventListener('portal:notification-received', handlePortalReservationNotification);
+
+            document.getElementById('btnNewRequest').addEventListener('click', () => {
+                document.getElementById('newRequestPanel').style.display = 'block';
+            });
+
+            document.getElementById('btnCancelForm').addEventListener('click', () => {
+                resetForm(today);
+            });
+
+            document.getElementById('courtId').addEventListener('change', loadAvailability);
+            document.getElementById('reqDate').addEventListener('change', async () => {
+                await Promise.all([loadAvailability(), loadSystemReservations()]);
+            });
+
+            document.getElementById('requestForm').addEventListener('submit', submitRequest);
+            document.getElementById('btnApplyFilters').addEventListener('click', loadRequests);
+            document.getElementById('btnResetFilters').addEventListener('click', async () => {
+                document.getElementById('filterFromDate').value = today;
+                document.getElementById('filterToDate').value = today;
+                document.getElementById('filterStatus').value = 'all';
+                await loadRequests();
+            });
+            document.getElementById('filterStatus').addEventListener('change', loadRequests);
+        });
+
+        function resetForm(today) {
+            document.getElementById('newRequestPanel').style.display = 'none';
+            document.getElementById('requestForm').reset();
+            document.getElementById('reqDate').value = today;
+            currentReservedSlots = [];
+            loadAvailability();
+            loadSystemReservations();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function overlapWithReserved(startTime, endTime) {
+            return currentReservedSlots.some(slot => slot.startTime < endTime && slot.endTime > startTime);
+        }
+
+        async function loadCourts() {
+            const select = document.getElementById('courtId');
+            try {
+                const courts = await api.request('/courts?activeOnly=true');
+                const activeCourts = Array.isArray(courts) ? courts : [];
+
+                if (!activeCourts.length) {
+                    select.innerHTML = '<option value="">Nenhuma quadra disponivel</option>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">Selecione uma quadra</option>' + activeCourts
+                    .map(court => `<option value="${court.id}">${escapeHtml(court.name)} - ${escapeHtml(court.sportType || 'Quadra')}</option>`)
+                    .join('');
+            } catch (error) {
+                select.innerHTML = '<option value="">Erro ao carregar quadras</option>';
+            }
+        }
+
+        async function loadAvailability() {
+            const courtId = document.getElementById('courtId').value;
+            const date = document.getElementById('reqDate').value;
+            const title = document.getElementById('availabilityTitle');
+            const content = document.getElementById('availabilityContent');
+
+            currentReservedSlots = [];
+
+            if (!courtId || !date) {
+                title.textContent = 'Escolha uma quadra e uma data';
+                content.className = 'empty-box';
+                content.textContent = 'Nenhum horario carregado ainda.';
+                return;
+            }
+
+            try {
+                const result = await api.request(`/portal/court-availability?courtId=${courtId}&date=${date}`);
+                currentReservedSlots = Array.isArray(result.reservedSlots) ? result.reservedSlots : [];
+                title.textContent = `${result.courtName} em ${new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR')}`;
+
+                if (!currentReservedSlots.length) {
+                    content.className = 'empty-box';
+                    content.textContent = 'Nenhum horario ocupado nesta data para esta quadra.';
+                    return;
+                }
+
+                content.className = 'slot-list';
+                content.innerHTML = currentReservedSlots.map(slot => `
+                    <div class="slot-item">
+                        <strong>${escapeHtml(slot.label)}</strong>
+                        <span style="color:var(--text-muted);">Horario indisponivel</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                content.className = 'empty-box';
+                content.textContent = error.message || 'Nao foi possivel consultar a disponibilidade.';
+            }
+        }
+
+        async function loadSystemReservations() {
+            const date = document.getElementById('reqDate').value;
+            const title = document.getElementById('systemAgendaTitle');
+            const count = document.getElementById('systemAgendaCount');
+            const container = document.getElementById('systemAgendaContainer');
+
+            if (!date) {
+                title.textContent = 'Reservas confirmadas do dia';
+                count.textContent = '0 reservas';
+                container.innerHTML = '<div class="empty-box">Escolha uma data para ver a agenda do sistema.</div>';
+                return;
+            }
+
+            try {
+                const result = await api.request(`/portal/system-reservations?date=${date}`);
+                const groups = Array.isArray(result.reservationsByCourt) ? result.reservationsByCourt : [];
+                const formattedDate = new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR');
+
+                title.textContent = `Reservas confirmadas em ${formattedDate}`;
+                count.textContent = `${Number(result.totalReservations || 0)} reservas`;
+
+                if (!groups.length) {
+                    container.innerHTML = '<div class="empty-box">Nenhum agendamento ativo no sistema para esta data.</div>';
+                    return;
+                }
+
+                container.innerHTML = groups.map(group => `
+                    <div class="court-agenda-group">
+                        <h4>${escapeHtml(group.courtName)}</h4>
+                        ${group.slots.map(slot => `
+                            <div class="agenda-slot">
+                                <div>
+                                    <strong>${escapeHtml(slot.label)}</strong>
+                                    <span>${escapeHtml(slot.customerName || 'Cliente da arena')}</span>
+                                </div>
+                                <span>Reservado</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Nao foi possivel carregar a agenda ativa.')}</div>`;
+            }
+        }
+
+        async function submitRequest(event) {
+            event.preventDefault();
+
+            const button = event.target.querySelector('button[type="submit"]');
+            const originalText = button.textContent;
+            button.textContent = 'Enviando...';
+            button.disabled = true;
+
+            try {
+                const courtId = parseInt(document.getElementById('courtId').value, 10);
+                const date = document.getElementById('reqDate').value;
+                const startTime = `${document.getElementById('startTime').value}:00`;
+                const endTime = `${document.getElementById('endTime').value}:00`;
+
+                if (!courtId) {
+                    throw new Error('Selecione uma quadra para continuar.');
+                }
+
+                if (endTime <= startTime) {
+                    throw new Error('O horario final deve ser maior que o horario inicial.');
+                }
+
+                if (overlapWithReserved(startTime, endTime)) {
+                    throw new Error('Este intervalo conflita com um horario ja ocupado nesta quadra.');
+                }
+
+                await api.request('/portal/reservation-requests', 'POST', {
+                    courtId,
+                    requestedDate: date,
+                    startTime,
+                    endTime,
+                    requestedPrice: 0,
+                    requestNotes: document.getElementById('reqNotes').value.trim() || null
+                });
+
+                resetForm(getLocalDateInputValue());
+                await Promise.all([loadRequests(), loadAvailability(), loadSystemReservations()]);
+                await portalFeedback.success('Solicitacao enviada com sucesso.', {
+                    title: 'Agendamento em analise'
+                });
+            } catch (error) {
+                await portalFeedback.error(error.message || 'Nao foi possivel enviar a solicitacao.');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        async function loadRequests() {
+            const container = document.getElementById('requestsContainer');
+            const historyCount = document.getElementById('historyFilterCount');
+            const historySummary = document.getElementById('historyFilterSummary');
+            try {
+                const filters = getHistoryFilters();
+                const requests = await api.request(`/portal/reservation-requests${buildQueryString(filters)}`);
+
+                historyCount.textContent = `${requests.length} resultado${requests.length === 1 ? '' : 's'}`;
+                historySummary.textContent = `Mostrando ${getStatusLabel(filters.status)} ${formatPeriodLabel(filters.fromDate, filters.toDate)}.`;
+
+                if (!requests.length) {
+                    container.innerHTML = '<div class="empty-box">Nenhum agendamento encontrado para os filtros informados.</div>';
+                    return;
+                }
+
+                container.innerHTML = requests.map(request => {
+                    const date = new Date(request.requestedDate);
+                    date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+
+                    let statusClass = 'status-pending';
+                    let statusText = 'Pendente';
+
+                    if (request.status === 'Approved') {
+                        statusClass = 'status-approved';
+                        statusText = 'Aprovado';
+                    } else if (request.status === 'Rejected') {
+                        statusClass = 'status-rejected';
+                        statusText = 'Recusado';
+                    } else if (request.status === 'CancelledByArena') {
+                        statusClass = 'status-cancelled';
+                        statusText = 'Cancelado pela arena';
+                    } else if (request.status === 'CancelledByClient') {
+                        statusClass = 'status-cancelled';
+                        statusText = 'Cancelado';
+                    } else if (request.status === 'Expired') {
+                        statusClass = 'status-cancelled';
+                        statusText = 'Expirado';
+                    }
+
+                    const cancelButton = request.status === 'Pending'
+                        ? `<button class="btn btn-ghost" style="width:auto;" onclick="cancelRequest(${request.id})">Cancelar</button>`
+                        : '';
+
+                    const feedback = request.reviewNotes
+                        ? `<div class="hint-box" style="margin-top:14px;"><strong>Retorno:</strong> ${escapeHtml(request.reviewNotes)}</div>`
+                        : '';
+
+                    return `
+                        <article class="portal-panel request-card">
+                            <div>
+                                <h3 style="margin-bottom:10px;">${escapeHtml(request.courtName)}</h3>
+                                <div class="request-meta">
+                                    <span>${date.toLocaleDateString('pt-BR')}</span>
+                                    <span>${request.startTime.slice(0, 5)} as ${request.endTime.slice(0, 5)}</span>
+                                </div>
+                                ${request.requestNotes ? `<p style="margin-top:12px; color:var(--text-muted);">${escapeHtml(request.requestNotes)}</p>` : ''}
+                                ${feedback}
+                            </div>
+                            <div class="request-actions">
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                                ${cancelButton}
+                            </div>
+                        </article>`;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Erro ao carregar solicitacoes.')}</div>`;
+                historyCount.textContent = 'Erro';
+                historySummary.textContent = 'Nao foi possivel aplicar os filtros agora.';
+            }
+        }
+
+        async function cancelRequest(id) {
+            const confirmed = await portalFeedback.confirm('Tem certeza que deseja cancelar esta solicitacao?', {
+                title: 'Cancelar agendamento',
+                confirmText: 'Cancelar solicitacao'
+            });
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                await api.request(`/portal/reservation-requests/${id}`, 'DELETE');
+                await loadRequests();
+                await loadSystemReservations();
+            } catch (error) {
+                await portalFeedback.error(error.message || 'Nao foi possivel cancelar.');
+            }
+        }
+    </script>
+    <script src="js/notifications.js"></script>
+</body>
+</html>

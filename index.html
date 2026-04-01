@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Portal - Acesso do Cliente</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body class="portal-shell portal-auth-body">
+    <div class="portal-auth-grid">
+        <section class="login-container glass-panel">
+            <div class="logo-area">
+                <div class="logo-icon">AB</div>
+                <h2>Acessar Portal</h2>
+                <p>Use seu e-mail ou celular e a senha definida no cadastro.</p>
+            </div>
+
+            <div class="portal-google-wrap">
+                <div id="portalGoogleSigninMount"></div>
+            </div>
+
+            <div class="portal-auth-divider">
+                <span>ou entrar com senha</span>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <div class="input-group">
+                    <label for="username">E-mail ou celular</label>
+                    <input type="text" id="username" required placeholder="exemplo@email.com ou (11) 99999-9999">
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" required placeholder="Digite sua senha de acesso">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block glow-effect">Entrar no portal</button>
+                <div id="errorMessage" class="error-msg"></div>
+            </form>
+
+            <div class="auth-footer">
+                <p>Sem acesso ainda? Peca ao administrador para liberar o portal no seu cadastro.</p>
+            </div>
+        </section>
+
+        <section class="portal-auth-hero glass-panel">
+            <div class="portal-badge">Arena Beach</div>
+            <h1>Portal do Cliente e do Aluno</h1>
+            <p>Agendamentos, comandas e mensalidades em uma area unica, usando o cadastro que ja existe no sistema.</p>
+
+            <div class="sport-stage" aria-hidden="true">
+                <div class="sport-stage-copy">
+                    <span>Beach Tennis + Futevolei</span>
+                    <strong>Seu jogo continua fora da quadra.</strong>
+                </div>
+                <div class="futevolei-ball">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div class="sport-stage-glow"></div>
+            </div>
+
+            <div class="portal-auth-highlights">
+                <div class="portal-auth-highlight">
+                    <strong>Login simples</strong>
+                    <span>Entre com e-mail ou celular cadastrados no admin.</span>
+                </div>
+                <div class="portal-auth-highlight">
+                    <strong>Mensalidades do aluno</strong>
+                    <span>Visualize vencimentos, pagamentos e atrasos com seguranca.</span>
+                </div>
+                <div class="portal-auth-highlight">
+                    <strong>Acesso centralizado</strong>
+                    <span>O administrador libera o portal direto no cadastro do cliente ou do aluno.</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function getPortalGoogleClientId() {
+            const configuredValue =
+                window.ARENA_GOOGLE_CLIENT_ID ||
+                window.ARENA_RUNTIME_CONFIG?.googleClientId ||
+                document.querySelector('meta[name="arena-google-client-id"]')?.content ||
+                '';
+
+            if (!configuredValue || (configuredValue.startsWith('__') && configuredValue.endsWith('__'))) {
+                return '';
+            }
+
+            return configuredValue.trim();
+        }
+
+        async function initPortalGoogleSignIn() {
+            const mount = document.getElementById('portalGoogleSigninMount');
+            const clientId = getPortalGoogleClientId();
+            if (!mount || !clientId) {
+                return;
+            }
+
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                if (window.google?.accounts?.id) {
+                    window.google.accounts.id.initialize({
+                        client_id: clientId,
+                        callback: handlePortalGoogleLogin,
+                        auto_select: false
+                    });
+
+                    window.google.accounts.id.renderButton(mount, {
+                        type: 'standard',
+                        shape: 'pill',
+                        theme: 'outline',
+                        text: 'signin_with',
+                        size: 'large',
+                        logo_alignment: 'left'
+                    });
+                    return;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+        }
+
+        initPortalGoogleSignIn();
+    </script>
+</body>
+</html>

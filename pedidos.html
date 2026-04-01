@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Portal - Pedidos do Bar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .page-shell { min-height:100vh; padding:2rem; }
+        .page-wrap { max-width:1220px; margin:0 auto; }
+        .page-grid { display:grid; grid-template-columns:1.8fr .95fr; gap:24px; }
+        .product-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+        .product-card { display:flex; flex-direction:column; justify-content:space-between; gap:16px; }
+        .product-meta { color:var(--text-muted); font-size:.92rem; }
+        .cart-box { position:sticky; top:92px; display:grid; gap:16px; }
+        .cart-items { display:grid; gap:10px; }
+        .cart-item { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); }
+        .request-list { display:grid; gap:14px; margin-top:18px; }
+        .request-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; align-items:center; }
+        .status-badge { padding:.35rem .8rem; border-radius:999px; font-size:.76rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+        .status-pending { background:rgba(245,158,11,.16); color:#fcd34d; }
+        .status-approved { background:rgba(16,185,129,.16); color:#6ee7b7; }
+        .status-rejected { background:rgba(239,68,68,.16); color:#fca5a5; }
+        .status-cancelled { background:rgba(148,163,184,.16); color:#cbd5e1; }
+        .empty-box { padding:28px 18px; text-align:center; color:var(--text-muted); border-radius:18px; border:1px dashed rgba(255,255,255,.12); background:rgba(255,255,255,.02); }
+        @media (max-width: 960px) {
+            .page-shell { padding:1rem; }
+            .page-grid, .request-card { grid-template-columns:1fr; }
+            .cart-box { position:static; }
+        }
+    </style>
+</head>
+<body class="portal-page">
+    <div class="page-shell">
+        <div class="page-wrap">
+            <header class="topbar portal-topbar">
+                <div class="portal-topbar-stack">
+                    <div class="portal-topbar-head">
+                        <div class="portal-brand">
+                            <div class="portal-brand-mark">AP</div>
+                            <div class="portal-brand-copy">
+                                <strong>Arena Portal</strong>
+                                <span id="userNameDisplay">Carregando pedidos da sua comanda...</span>
+                            </div>
+                        </div>
+                        <div class="portal-top-actions">
+                            <div class="portal-action-group">
+                                <div class="notifications-wrapper" style="position:relative;">
+                                    <button id="btnNotifications" class="portal-icon-button" type="button" aria-label="Notificacoes">
+                                        <span class="portal-icon-symbol" aria-hidden="true">&#128276;</span>
+                                        <span id="notificationBadge" class="portal-notification-badge">0</span>
+                                    </button>
+                                    <div id="notificationsDropdown" class="portal-dropdown">
+                                        <div class="portal-dropdown-header">
+                                            <strong>Notificacoes</strong>
+                                            <a href="#" id="btnMarkAllRead" class="portal-dropdown-link">Marcar lidas</a>
+                                        </div>
+                                        <div id="notificationsList" class="portal-dropdown-body">
+                                            <p style="color:var(--text-muted); text-align:center; font-size:0.9rem; margin-top:10px;">Carregando...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn-ghost" onclick="logout()">
+                                    <span aria-hidden="true">&#x21AA;</span>
+                                    <span>Sair</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <nav class="portal-nav-tabs" aria-label="Menu do portal">
+                        <a href="dashboard.html" class="portal-nav-link">Visao geral</a>
+                        <a href="agendamentos.html" class="portal-nav-link">Agendamentos</a>
+                        <a href="comandas.html" class="portal-nav-link active">Comandas</a>
+                        <a href="mensalidades.html" class="portal-nav-link">Mensalidades</a>
+                    </nav>
+                </div>
+            </header>
+
+            <main style="display:grid; gap:24px;">
+                <section class="portal-panel">
+                    <div class="portal-section-title">Pedidos do Bar</div>
+                    <h1 style="font-size:clamp(2rem,4vw,3rem); line-height:.98;">Solicitar Itens</h1>
+                    <p id="tabSummary" style="color:var(--text-muted); margin-top:10px;">Validando sua comanda...</p>
+                </section>
+
+                <section class="page-grid">
+                    <div class="portal-panel">
+                        <div class="portal-section-title">Cardapio</div>
+                        <div id="productGrid" class="product-grid">
+                            <div class="empty-box">Carregando produtos...</div>
+                        </div>
+                    </div>
+
+                    <aside class="cart-box">
+                        <div class="portal-panel">
+                            <div class="portal-section-title">Seu Pedido</div>
+                            <div id="cartItems" class="cart-items">
+                                <div class="empty-box">Nenhum item selecionado.</div>
+                            </div>
+                            <div class="input-group" style="margin-top:16px;">
+                                <label for="orderNotes">Observacoes</label>
+                                <input type="text" id="orderNotes" placeholder="Ex: sem gelo, por favor.">
+                            </div>
+                            <p style="margin-top:14px; color:var(--text-muted); font-size:.92rem;">Cada item enviado vai para aprovacao do administrativo e do bar antes de entrar na comanda.</p>
+                            <button id="submitOrderBtn" class="btn btn-primary glow-effect" style="width:100%; margin-top:16px;" disabled>Enviar pedido</button>
+                        </div>
+                    </aside>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="portal-section-title">Historico desta Comanda</div>
+                    <div id="requestsContainer" class="request-list">
+                        <div class="empty-box">Carregando pedidos...</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentTabId = parseInt(urlParams.get('tabId') || '0', 10);
+        let cart = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('portal_user')) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const portalUser = JSON.parse(localStorage.getItem('portal_user') || 'null');
+            document.getElementById('userNameDisplay').textContent =
+                portalUser?.name
+                    ? `${portalUser.name.split(' ')[0]}, monte seus pedidos e acompanhe a aprovacao.`
+                    : 'Monte seus pedidos e acompanhe a aprovacao.';
+
+            if (!currentTabId) {
+                await portalFeedback.alert('Nenhuma comanda valida foi informada.', {
+                    title: 'Comanda nao encontrada'
+                });
+                window.location.href = 'comandas.html';
+                return;
+            }
+
+            const valid = await validateCurrentTab();
+            if (!valid) {
+                return;
+            }
+
+            await Promise.all([loadProducts(), loadRequests()]);
+            document.getElementById('submitOrderBtn').addEventListener('click', submitOrders);
+            setInterval(() => syncTabState(false), 15000);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    syncTabState(false);
+                }
+            });
+        });
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        async function validateCurrentTab(showAlert = true) {
+            try {
+                const requests = await api.request('/portal/tab-open-requests');
+                const approved = requests.find(request =>
+                    request.status === 'Approved' &&
+                    request.approvedTabId === currentTabId &&
+                    request.isApprovedTabOpen
+                );
+
+                if (!approved) {
+                    const closedRequest = requests.find(request =>
+                        request.status === 'Approved' &&
+                        request.approvedTabId === currentTabId &&
+                        !request.isApprovedTabOpen
+                    );
+
+                    if (showAlert) {
+                        await portalFeedback.alert(
+                            closedRequest
+                                ? 'Esta comanda ja foi fechada e nao aceita novos pedidos.'
+                                : 'Esta comanda nao esta disponivel para seu acesso.',
+                            {
+                                title: closedRequest ? 'Comanda encerrada' : 'Acesso indisponivel'
+                            }
+                        );
+                    }
+                    window.location.href = 'comandas.html';
+                    return false;
+                }
+
+                document.getElementById('tabSummary').textContent = `Comanda ativa para ${approved.tableNumber || 'local nao informado'}. Os pedidos enviados aqui chegam para aprovacao no administrativo.`;
+                return true;
+            } catch (error) {
+                if (showAlert) {
+                    await portalFeedback.error(error.message || 'Nao foi possivel validar sua comanda.');
+                }
+                window.location.href = 'comandas.html';
+                return false;
+            }
+        }
+
+        async function syncTabState(showAlert = false) {
+            const valid = await validateCurrentTab(showAlert);
+            if (!valid) {
+                return false;
+            }
+
+            await loadRequests();
+            return true;
+        }
+
+        async function loadProducts() {
+            const container = document.getElementById('productGrid');
+            try {
+                const products = await api.request('/products').catch(() => []);
+                const availableProducts = products.filter(product => product.isActive);
+
+                if (!availableProducts.length) {
+                    container.innerHTML = '<div class="empty-box">Nenhum produto disponivel no momento.</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+
+                availableProducts.forEach(product => {
+                    const stock = Number(product.stock || 0);
+                    const unavailable = stock <= 0;
+                    const article = document.createElement('article');
+                    article.className = 'portal-panel product-card';
+
+                    const content = document.createElement('div');
+
+                    const title = document.createElement('h3');
+                    title.style.marginBottom = '8px';
+                    title.textContent = product.name || 'Produto';
+
+                    const price = document.createElement('div');
+                    price.style.fontSize = '1.3rem';
+                    price.style.fontWeight = '800';
+                    price.style.color = 'var(--primary-color)';
+                    price.style.marginBottom = '8px';
+                    price.textContent = `R$ ${Number(product.price || 0).toFixed(2).replace('.', ',')}`;
+
+                    const meta = document.createElement('div');
+                    meta.className = 'product-meta';
+                    meta.textContent = unavailable ? 'Sem estoque no momento' : `${stock} un. disponiveis`;
+
+                    content.appendChild(title);
+                    content.appendChild(price);
+                    content.appendChild(meta);
+
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-outline';
+                    button.style.width = '100%';
+                    button.disabled = unavailable;
+                    button.textContent = unavailable ? 'Indisponivel' : 'Adicionar';
+
+                    if (!unavailable) {
+                        button.addEventListener('click', () => {
+                            addToCart(product.id, product.name || 'Produto', Number(product.price || 0));
+                        });
+                    }
+
+                    article.appendChild(content);
+                    article.appendChild(button);
+                    container.appendChild(article);
+                });
+            } catch (error) {
+                container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Erro ao carregar produtos.')}</div>`;
+            }
+        }
+
+        function addToCart(productId, name, price) {
+            const existing = cart.find(item => item.productId === productId);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                cart.push({ productId, name, price, quantity: 1 });
+            }
+            renderCart();
+        }
+
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.productId !== productId);
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartItems');
+            const submitButton = document.getElementById('submitOrderBtn');
+
+            if (!cart.length) {
+                container.innerHTML = '<div class="empty-box">Nenhum item selecionado.</div>';
+                submitButton.disabled = true;
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = cart.map(item => {
+                total += item.price * item.quantity;
+                return `
+                    <div class="cart-item">
+                        <div>
+                            <div style="font-weight:600;">${item.quantity}x ${escapeHtml(item.name)}</div>
+                            <div style="font-size:.9rem; color:var(--text-muted);">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</div>
+                        </div>
+                        <button type="button" class="btn btn-ghost" style="width:auto;" onclick="removeFromCart(${item.productId})">Remover</button>
+                    </div>`;
+            }).join('');
+
+            container.innerHTML += `
+                <div class="cart-item" style="border-style:dashed;">
+                    <strong>Total</strong>
+                    <strong>R$ ${total.toFixed(2).replace('.', ',')}</strong>
+                </div>`;
+            submitButton.disabled = false;
+        }
+
+        async function submitOrders() {
+            if (!cart.length) {
+                return;
+            }
+
+            const button = document.getElementById('submitOrderBtn');
+            const originalText = button.textContent;
+            button.textContent = 'Enviando...';
+            button.disabled = true;
+
+            try {
+                const stillValid = await validateCurrentTab();
+                if (!stillValid) {
+                    return;
+                }
+
+                const notes = document.getElementById('orderNotes').value.trim() || null;
+                await Promise.all(cart.map(item => api.request('/portal/tab-item-requests', 'POST', {
+                    tabId: currentTabId,
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    requestNotes: notes
+                })));
+
+                cart = [];
+                renderCart();
+                document.getElementById('orderNotes').value = '';
+                await loadRequests();
+                await portalFeedback.success('Pedido enviado com sucesso. Agora o administrativo e o bar vao analisar os itens.', {
+                    title: 'Pedido em analise'
+                });
+            } catch (error) {
+                await portalFeedback.error(error.message || 'Nao foi possivel enviar o pedido.');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = cart.length === 0;
+            }
+        }
+
+        async function loadRequests() {
+            const container = document.getElementById('requestsContainer');
+            try {
+                const requests = await api.request(`/portal/tab-item-requests?tabId=${currentTabId}`);
+
+                if (!requests.length) {
+                    container.innerHTML = '<div class="empty-box">Voce ainda nao possui pedidos nesta comanda.</div>';
+                    return;
+                }
+
+                container.innerHTML = requests.map(request => {
+                    let statusClass = 'status-pending';
+                    let statusText = 'Aguardando aprovacao';
+
+                    if (request.status === 'Approved') {
+                        statusClass = 'status-approved';
+                        statusText = 'Aprovado';
+                    } else if (request.status === 'Rejected') {
+                        statusClass = 'status-rejected';
+                        statusText = 'Recusado';
+                    } else if (request.status === 'CancelledByClient') {
+                        statusClass = 'status-cancelled';
+                        statusText = 'Cancelado';
+                    }
+
+                    const cancelButton = request.status === 'Pending'
+                        ? `<button class="btn btn-ghost" style="width:auto;" onclick="cancelRequest(${request.id})">Cancelar item</button>`
+                        : '';
+
+                    return `
+                        <article class="portal-panel request-card">
+                            <div>
+                                <h3 style="margin-bottom:10px;">${request.quantity}x ${escapeHtml(request.productName)}</h3>
+                                <p style="color:var(--text-muted);">Pedido em ${new Date(request.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                                <p style="color:var(--text-muted); margin-top:8px;">Valor unitario: R$ ${Number(request.unitPrice || 0).toFixed(2).replace('.', ',')}</p>
+                                ${request.reviewNotes ? `<p style="margin-top:10px; color:#fcd34d;">Retorno: ${escapeHtml(request.reviewNotes)}</p>` : ''}
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-end;">
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                                ${cancelButton}
+                            </div>
+                        </article>`;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Erro ao carregar pedidos.')}</div>`;
+            }
+        }
+
+        async function cancelRequest(id) {
+            const confirmed = await portalFeedback.confirm('Tem certeza que deseja cancelar este item?', {
+                title: 'Cancelar item',
+                confirmText: 'Cancelar item'
+            });
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                await api.request(`/portal/tab-item-requests/${id}`, 'DELETE');
+                await loadRequests();
+            } catch (error) {
+                await portalFeedback.error(error.message || 'Nao foi possivel cancelar o item.');
+            }
+        }
+    </script>
+    <script src="js/notifications.js"></script>
+</body>
+</html>
