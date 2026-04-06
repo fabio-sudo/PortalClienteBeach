@@ -215,8 +215,15 @@
         let currentReservedSlots = [];
         let portalReservationRefreshTimer = null;
         const getLocalDateInputValue = (value = new Date()) => {
-            const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
-            return local.toISOString().split('T')[0];
+            const year = value.getFullYear();
+            const month = String(value.getMonth() + 1).padStart(2, '0');
+            const day = String(value.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        const getLocalTimeInputValue = (value = new Date()) => {
+            const hours = String(value.getHours()).padStart(2, '0');
+            const minutes = String(value.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
         };
         const buildQueryString = filters => {
             const query = new URLSearchParams();
@@ -278,6 +285,33 @@
             scheduleRealtimeReservationRefresh();
         };
 
+        function updateTodayTimeConstraints() {
+            const selectedDate = document.getElementById('reqDate').value;
+            const today = getLocalDateInputValue();
+            const currentTime = getLocalTimeInputValue();
+            const startInput = document.getElementById('startTime');
+            const endInput = document.getElementById('endTime');
+            const isToday = selectedDate === today;
+
+            if (isToday) {
+                startInput.min = currentTime;
+                endInput.min = currentTime;
+
+                if (startInput.value && startInput.value < currentTime) {
+                    startInput.value = currentTime;
+                }
+
+                if (endInput.value && endInput.value < currentTime) {
+                    endInput.value = '';
+                }
+
+                return;
+            }
+
+            startInput.removeAttribute('min');
+            endInput.removeAttribute('min');
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             if (!localStorage.getItem('portal_user')) {
                 window.location.href = 'index.html';
@@ -295,6 +329,7 @@
             document.getElementById('reqDate').value = today;
             document.getElementById('filterFromDate').value = today;
             document.getElementById('filterToDate').value = today;
+            updateTodayTimeConstraints();
 
             await loadCourts();
             await Promise.all([loadRequests(), loadAvailability(), loadSystemReservations()]);
@@ -310,6 +345,7 @@
 
             document.getElementById('courtId').addEventListener('change', loadAvailability);
             document.getElementById('reqDate').addEventListener('change', async () => {
+                updateTodayTimeConstraints();
                 await Promise.all([loadAvailability(), loadSystemReservations()]);
             });
 
@@ -329,6 +365,7 @@
             document.getElementById('requestForm').reset();
             document.getElementById('reqDate').value = today;
             currentReservedSlots = [];
+            updateTodayTimeConstraints();
             loadAvailability();
             loadSystemReservations();
         }
@@ -460,11 +497,21 @@
             try {
                 const courtId = parseInt(document.getElementById('courtId').value, 10);
                 const date = document.getElementById('reqDate').value;
-                const startTime = `${document.getElementById('startTime').value}:00`;
-                const endTime = `${document.getElementById('endTime').value}:00`;
+                const startTimeValue = document.getElementById('startTime').value;
+                const endTimeValue = document.getElementById('endTime').value;
+                const startTime = `${startTimeValue}:00`;
+                const endTime = `${endTimeValue}:00`;
 
                 if (!courtId) {
                     throw new Error('Selecione uma quadra para continuar.');
+                }
+
+                if (!startTimeValue || !endTimeValue) {
+                    throw new Error('Informe o horario inicial e o horario final.');
+                }
+
+                if (date === getLocalDateInputValue() && startTimeValue < getLocalTimeInputValue()) {
+                    throw new Error('Para agendamentos de hoje, escolha um horario igual ou posterior ao horario atual do aparelho.');
                 }
 
                 if (endTime <= startTime) {
