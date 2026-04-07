@@ -3,22 +3,38 @@ function persistPortalSession(response) {
     localStorage.setItem('portal_user', JSON.stringify(response));
 }
 
-async function completePortalExternalLogin(token, fallbackProfile = null) {
+function buildPortalSession(response) {
+    return {
+        token: response.token,
+        name: response.name || response.username || 'Cliente',
+        username: response.username || response.email || response.name || 'cliente',
+        email: response.email || null,
+        phone: response.phone || null,
+        role: response.role || null,
+        accountType: response.accountType || null,
+        customerId: response.customerId ?? null,
+        studentId: response.studentId ?? null,
+        portalAccessEnabled: response.portalAccessEnabled ?? true,
+        hasStudentBillingAccess: response.hasStudentBillingAccess ?? !!response.studentId
+    };
+}
+
+async function completePortalCallbackLogin(token, fallbackProfile = null) {
     localStorage.setItem('portal_token', token);
 
     try {
         const profile = await api.request('/portal/profile/me');
-        persistPortalSession({
+        persistPortalSession(buildPortalSession({
             token,
             ...profile
-        });
+        }));
         return;
     } catch (error) {
         if (fallbackProfile) {
-            persistPortalSession({
+            persistPortalSession(buildPortalSession({
                 token,
                 ...fallbackProfile
-            });
+            }));
             return;
         }
 
@@ -80,7 +96,7 @@ window.handlePortalGoogleLogin = async function (googleResponse) {
             credential: googleResponse.credential
         });
 
-        await completePortalExternalLogin(response.token, response);
+        persistPortalSession(buildPortalSession(response));
         window.location.href = 'dashboard.html';
     } catch (error) {
         if (errorMsg) {
@@ -136,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                await completePortalExternalLogin(oauthCallback.token, {
+                await completePortalCallbackLogin(oauthCallback.token, {
                     name: oauthCallback.name || oauthCallback.email || 'Cliente',
                     username: oauthCallback.email || oauthCallback.name || 'google',
                     email: oauthCallback.email || null
@@ -178,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await api.request('/portal/auth/login', 'POST', { username, password });
 
-            await completePortalExternalLogin(response.token, response);
+            persistPortalSession(buildPortalSession(response));
             window.location.href = 'dashboard.html';
         } catch (error) {
             errorMsg.textContent = error.message || 'Nao foi possivel acessar o portal.';
