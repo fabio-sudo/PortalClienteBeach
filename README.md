@@ -21,8 +21,8 @@ No recurso do App Service, abra `Environment variables` e cadastre:
 
 Exemplo:
 
-- `PORTAL_API_PREFIX=https://arena-api-h5cqf9b4brbsbnfb.brazilsouth-01.azurewebsites.net/api`
-- `PORTAL_GOOGLE_CLIENT_ID=1001684908537-r8544gu7n3j51c3ioci59cn3fjkh6nh8.apps.googleusercontent.com`
+- `PORTAL_API_PREFIX=https://
+- `PORTAL_GOOGLE_CLIENT_ID=
 
 ## Teste local
 
