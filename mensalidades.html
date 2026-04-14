@@ -207,6 +207,13 @@
                             </tbody>
                         </table>
                     </div>
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;">
+                        <span id="paymentsPaginationInfo" style="color:var(--text-muted); font-size:0.9rem;">Carregando pagina...</span>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn btn-ghost" id="paymentsPrevBtn" style="width:auto;">Anterior</button>
+                            <button type="button" class="btn btn-ghost" id="paymentsNextBtn" style="width:auto;">Proxima</button>
+                        </div>
+                    </div>
                 </section>
             </section>
         </main>
@@ -274,6 +281,7 @@
             paid: 'pagas',
             cancelled: 'canceladas'
         }[status] || 'todos os status');
+        let billingPagination = { page: 1, pageSize: 8, totalPayments: 0, totalPages: 0 };
 
         function paymentBadge(status) {
             const normalized = String(status || '').toLowerCase();
@@ -309,10 +317,41 @@
             document.getElementById('billingStatusFilter').value = status;
         }
 
-        async function loadBillingOverview(preloadedBilling = null) {
+        function renderBillingPagination() {
+            const info = document.getElementById('paymentsPaginationInfo');
+            const prev = document.getElementById('paymentsPrevBtn');
+            const next = document.getElementById('paymentsNextBtn');
+
+            if (!billingPagination.totalPayments) {
+                info.textContent = 'Nenhum registro para os filtros atuais.';
+                prev.disabled = true;
+                next.disabled = true;
+                return;
+            }
+
+            const start = ((billingPagination.page - 1) * billingPagination.pageSize) + 1;
+            const end = Math.min(billingPagination.page * billingPagination.pageSize, billingPagination.totalPayments);
+            info.textContent = `Exibindo ${start}-${end} de ${billingPagination.totalPayments} registro(s). Pagina ${billingPagination.page} de ${Math.max(billingPagination.totalPages, 1)}.`;
+            prev.disabled = billingPagination.page <= 1;
+            next.disabled = billingPagination.totalPages === 0 || billingPagination.page >= billingPagination.totalPages;
+        }
+
+        async function loadBillingOverview(preloadedBilling = null, page = 1) {
             const filters = getBillingFilters();
-            const query = buildBillingQuery(filters);
-            const billing = preloadedBilling || await api.request(`/portal/profile/billing?${query}`);
+            const billing = preloadedBilling || await api.requestPaged('/portal/profile/billing', {
+                scope: filters.scope,
+                fromDate: filters.scope === 'period' ? filters.fromDate : undefined,
+                toDate: filters.scope === 'period' ? filters.toDate : undefined,
+                status: filters.status !== 'all' ? filters.status : undefined,
+                page,
+                pageSize: billingPagination.pageSize
+            });
+            billingPagination = {
+                page: billing.page || page,
+                pageSize: billing.pageSize || billingPagination.pageSize,
+                totalPayments: billing.totalPayments || 0,
+                totalPages: billing.totalPages || 0
+            };
 
             document.getElementById('heroSubtitle').textContent = `Aluno vinculado: ${billing.studentName}. Acompanhe vencimentos, pagamentos e atrasos em tempo real.`;
             document.getElementById('currentPlan').textContent = billing.planName || 'Sem plano';
@@ -321,8 +360,9 @@
             document.getElementById('pendingCount').textContent = billing.pendingPayments;
             document.getElementById('overdueCount').textContent = billing.overduePayments;
             document.getElementById('openBalance').textContent = formatCurrency(billing.outstandingAmount);
-            document.getElementById('paymentsFilterCount').textContent = `${billing.payments.length} registro${billing.payments.length === 1 ? '' : 's'}`;
+            document.getElementById('paymentsFilterCount').textContent = `${billing.totalPayments} registro${billing.totalPayments === 1 ? '' : 's'}`;
             document.getElementById('billingFilterSummary').textContent = `Mostrando ${getBillingSummaryLabel(filters)} com status ${getBillingStatusLabel(filters.status)}.`;
+            renderBillingPagination();
 
             if (!billing.payments.length) {
                 document.getElementById('paymentsTable').innerHTML = `
@@ -360,7 +400,7 @@
             try {
                 const [profile, billing] = await Promise.all([
                     api.request('/portal/profile/me'),
-                    api.request('/portal/profile/billing?scope=month').catch(() => null)
+                    api.requestPaged('/portal/profile/billing', { scope: 'month', page: 1, pageSize: billingPagination.pageSize }).catch(() => null)
                 ]);
 
                 const hasBillingAccess = !!profile.hasStudentBillingAccess && !!billing?.hasStudentLink;
@@ -370,34 +410,44 @@
                 }
 
                 document.getElementById('accountSummary').textContent = `${profile.name} | Login: ${profile.email || profile.phone || profile.username}`;
-                await loadBillingOverview(billing);
+                await loadBillingOverview(billing, 1);
 
                 document.querySelectorAll('#billingScopeToggle .portal-toggle-button').forEach(button => {
                     button.addEventListener('click', async () => {
                         setActiveBillingScope(button.dataset.scope);
-                        await loadBillingOverview();
+                        await loadBillingOverview(null, 1);
                     });
                 });
 
                 document.querySelectorAll('#billingStatusToggle .portal-toggle-button').forEach(button => {
                     button.addEventListener('click', async () => {
                         setActiveBillingStatus(button.dataset.status);
-                        await loadBillingOverview();
+                        await loadBillingOverview(null, 1);
                     });
                 });
 
-                document.getElementById('btnApplyBillingFilters').addEventListener('click', loadBillingOverview);
+                document.getElementById('btnApplyBillingFilters').addEventListener('click', () => loadBillingOverview(null, 1));
                 document.getElementById('btnResetBillingFilters').addEventListener('click', async () => {
                     document.getElementById('billingFromDate').value = getMonthStartInputValue();
                     document.getElementById('billingToDate').value = getLocalDateInputValue();
                     document.getElementById('billingStatusFilter').value = 'all';
                     setActiveBillingScope('month');
                     setActiveBillingStatus('all');
-                    await loadBillingOverview();
+                    await loadBillingOverview(null, 1);
                 });
                 document.getElementById('billingStatusFilter').addEventListener('change', async event => {
                     setActiveBillingStatus(event.target.value);
-                    await loadBillingOverview();
+                    await loadBillingOverview(null, 1);
+                });
+                document.getElementById('paymentsPrevBtn').addEventListener('click', () => {
+                    if (billingPagination.page > 1) {
+                        loadBillingOverview(null, billingPagination.page - 1);
+                    }
+                });
+                document.getElementById('paymentsNextBtn').addEventListener('click', () => {
+                    if (billingPagination.totalPages > 0 && billingPagination.page < billingPagination.totalPages) {
+                        loadBillingOverview(null, billingPagination.page + 1);
+                    }
                 });
             } catch (error) {
                 console.error(error);

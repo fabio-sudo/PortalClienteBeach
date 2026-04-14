@@ -222,12 +222,18 @@ async function loadNotifications() {
             const isRead = notification.isRead;
             const row = document.createElement('div');
             row.className = `portal-notification-row ${isRead ? 'read' : 'unread'}`;
+            const title = document.createElement('strong');
+            title.textContent = notification.title || 'Notificacao';
 
-            row.innerHTML = `
-                <strong>${notification.title}</strong>
-                <p>${notification.message}</p>
-                <span>${new Date(notification.createdAt).toLocaleDateString('pt-BR')}</span>
-            `;
+            const message = document.createElement('p');
+            message.textContent = notification.message || '';
+
+            const date = document.createElement('span');
+            date.textContent = new Date(notification.createdAt).toLocaleDateString('pt-BR');
+
+            row.appendChild(title);
+            row.appendChild(message);
+            row.appendChild(date);
 
             row.addEventListener('click', async () => {
                 if (!isRead) {

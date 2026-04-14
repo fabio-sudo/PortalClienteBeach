@@ -1,4 +1,4 @@
-const DEFAULT_PORTAL_API_PREFIX = 'https://arena-api-h5cqf9b4brbsbnfb.brazilsouth-01.azurewebsites.net/api';
+const DEFAULT_PORTAL_API_PREFIX = '';
 const DEFAULT_LOCAL_HTTP_API_PREFIX = 'http://localhost:5151/api';
 const DEFAULT_LOCAL_HTTPS_API_PREFIX = 'https://localhost:7044/api';
 const DEFAULT_GOOGLE_CLIENT_ID = '1001684908537-r8544gu7n3j51c3ioci59cn3fjkh6nh8.apps.googleusercontent.com';
@@ -144,6 +144,10 @@ function resolvePortalApiUrl() {
 }
 
 const API_URL = resolvePortalApiUrl();
+if (!isLocalEnvironment() && !API_URL) {
+    console.warn('Nenhuma API do portal foi configurada. Verifique js/runtime-config.json ou window.ARENA_PORTAL_API_PREFIX.');
+}
+
 function buildPortalApiUnavailableMessage(targetUrl = API_URL) {
     const environmentHint = isLocalEnvironment()
         ? 'Confirme que o backend local esta ativo em http://localhost:5151 ou https://localhost:7044.'
@@ -208,6 +212,22 @@ class ApiService {
         }
 
         return responseData;
+    }
+
+    async requestPaged(endpoint, params = {}) {
+        const query = new URLSearchParams();
+
+        Object.entries({
+            ...params,
+            paginated: true
+        }).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                query.set(key, value);
+            }
+        });
+
+        const separator = endpoint.includes('?') ? '&' : '?';
+        return this.request(`${endpoint}${query.toString() ? `${separator}${query}` : ''}`);
     }
 }
 

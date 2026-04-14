@@ -184,6 +184,13 @@
                     <div id="requestsContainer" class="request-list">
                         <div class="empty-box">Carregando historico...</div>
                     </div>
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;">
+                        <span id="historyPaginationInfo" style="color:var(--text-muted); font-size:0.9rem;">Carregando pagina...</span>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn btn-ghost" id="historyPrevBtn" style="width:auto;" onclick="changeHistoryPage(-1)">Anterior</button>
+                            <button type="button" class="btn btn-ghost" id="historyNextBtn" style="width:auto;" onclick="changeHistoryPage(1)">Proxima</button>
+                        </div>
+                    </div>
                 </section>
             </main>
         </div>
@@ -194,6 +201,7 @@
     <script>
         const formatCurrency = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         let requestsPollingId = null;
+        let historyPagination = { page: 1, pageSize: 6, totalItems: 0, totalPages: 0 };
         const getLocalDateInputValue = (value = new Date()) => {
             const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
             return local.toISOString().split('T')[0];
@@ -296,6 +304,25 @@
                 .replaceAll("'", '&#39;');
         }
 
+        function renderHistoryPagination() {
+            const info = document.getElementById('historyPaginationInfo');
+            const prev = document.getElementById('historyPrevBtn');
+            const next = document.getElementById('historyNextBtn');
+
+            if (!historyPagination.totalItems) {
+                info.textContent = 'Nenhum resultado para os filtros atuais.';
+                prev.disabled = true;
+                next.disabled = true;
+                return;
+            }
+
+            const start = ((historyPagination.page - 1) * historyPagination.pageSize) + 1;
+            const end = Math.min(historyPagination.page * historyPagination.pageSize, historyPagination.totalItems);
+            info.textContent = `Exibindo ${start}-${end} de ${historyPagination.totalItems} solicitacao(oes). Pagina ${historyPagination.page} de ${Math.max(historyPagination.totalPages, 1)}.`;
+            prev.disabled = historyPagination.page <= 1;
+            next.disabled = historyPagination.totalPages === 0 || historyPagination.page >= historyPagination.totalPages;
+        }
+
         async function submitRequest(event) {
             event.preventDefault();
             const button = event.target.querySelector('button[type="submit"]');
@@ -347,7 +374,7 @@
             return api.request(`/portal/tab-summary/${tabId}`);
         }
 
-        async function loadRequests() {
+        async function loadRequests(page = 1) {
             const container = document.getElementById('requestsContainer');
             const currentTabContent = document.getElementById('currentTabContent');
             const newRequestButton = document.getElementById('btnNewRequest');
@@ -356,10 +383,23 @@
             const historyCount = document.getElementById('historyFilterCount');
 
             try {
-                const [activeRequests, historyRequests] = await Promise.all([
+                const [activeRequests, historyResponse] = await Promise.all([
                     api.request('/portal/tab-open-requests?status=active'),
-                    api.request(`/portal/tab-open-requests${buildQueryString(filters)}`)
+                    api.requestPaged('/portal/tab-open-requests', {
+                        fromDate: filters.fromDate,
+                        toDate: filters.toDate,
+                        status: filters.status !== 'all' ? filters.status : undefined,
+                        page,
+                        pageSize: historyPagination.pageSize
+                    })
                 ]);
+                const historyRequests = historyResponse.items || [];
+                historyPagination = {
+                    page: historyResponse.page || page,
+                    pageSize: historyResponse.pageSize || historyPagination.pageSize,
+                    totalItems: historyResponse.totalItems || 0,
+                    totalPages: historyResponse.totalPages || 0
+                };
 
                 const approvedRequest = activeRequests
                     .filter(request => request.status === 'Approved' && request.isApprovedTabOpen)
@@ -367,8 +407,9 @@
 
                 const pendingRequest = activeRequests.some(request => request.status === 'Pending');
 
-                historyCount.textContent = `${historyRequests.length} resultado${historyRequests.length === 1 ? '' : 's'}`;
+                historyCount.textContent = `${historyPagination.totalItems} resultado${historyPagination.totalItems === 1 ? '' : 's'}`;
                 historySummary.textContent = `Mostrando ${getStatusLabel(filters.status)} ${formatPeriodLabel(filters.fromDate, filters.toDate)}.`;
+                renderHistoryPagination();
 
                 if (!historyRequests.length) {
                     container.innerHTML = '<div class="empty-box">Nenhuma solicitacao encontrada para os filtros informados.</div>';
@@ -468,7 +509,17 @@
                 currentTabContent.textContent = 'Nao foi possivel consultar sua comanda agora.';
                 historySummary.textContent = 'Nao foi possivel aplicar os filtros agora.';
                 historyCount.textContent = 'Erro';
+                renderHistoryPagination();
             }
+        }
+
+        function changeHistoryPage(step) {
+            const nextPage = historyPagination.page + step;
+            if (nextPage < 1 || (historyPagination.totalPages > 0 && nextPage > historyPagination.totalPages)) {
+                return;
+            }
+
+            loadRequests(nextPage);
         }
 
         async function cancelRequest(id) {

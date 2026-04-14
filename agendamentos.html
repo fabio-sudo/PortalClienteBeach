@@ -204,6 +204,13 @@
                     <div id="requestsContainer" class="request-list">
                         <div class="empty-box">Buscando suas solicitacoes...</div>
                     </div>
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;">
+                        <span id="historyPaginationInfo" style="color:var(--text-muted); font-size:0.9rem;">Carregando pagina...</span>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn btn-ghost" id="historyPrevBtn" style="width:auto;" onclick="changeHistoryPage(-1)">Anterior</button>
+                            <button type="button" class="btn btn-ghost" id="historyNextBtn" style="width:auto;" onclick="changeHistoryPage(1)">Proxima</button>
+                        </div>
+                    </div>
                 </section>
             </main>
         </div>
@@ -213,6 +220,7 @@
     <script src="js/auth.js"></script>
     <script>
         let currentReservedSlots = [];
+        let historyPagination = { page: 1, pageSize: 6, totalItems: 0, totalPages: 0 };
         let portalReservationRefreshTimer = null;
         const getLocalDateInputValue = (value = new Date()) => {
             const year = value.getFullYear();
@@ -383,6 +391,25 @@
             return currentReservedSlots.some(slot => slot.startTime < endTime && slot.endTime > startTime);
         }
 
+        function renderHistoryPagination() {
+            const info = document.getElementById('historyPaginationInfo');
+            const prev = document.getElementById('historyPrevBtn');
+            const next = document.getElementById('historyNextBtn');
+
+            if (!historyPagination.totalItems) {
+                info.textContent = 'Nenhum resultado para os filtros atuais.';
+                prev.disabled = true;
+                next.disabled = true;
+                return;
+            }
+
+            const start = ((historyPagination.page - 1) * historyPagination.pageSize) + 1;
+            const end = Math.min(historyPagination.page * historyPagination.pageSize, historyPagination.totalItems);
+            info.textContent = `Exibindo ${start}-${end} de ${historyPagination.totalItems} solicitacao(oes). Pagina ${historyPagination.page} de ${Math.max(historyPagination.totalPages, 1)}.`;
+            prev.disabled = historyPagination.page <= 1;
+            next.disabled = historyPagination.totalPages === 0 || historyPagination.page >= historyPagination.totalPages;
+        }
+
         async function loadCourts() {
             const select = document.getElementById('courtId');
             try {
@@ -544,16 +571,30 @@
             }
         }
 
-        async function loadRequests() {
+        async function loadRequests(page = 1) {
             const container = document.getElementById('requestsContainer');
             const historyCount = document.getElementById('historyFilterCount');
             const historySummary = document.getElementById('historyFilterSummary');
             try {
                 const filters = getHistoryFilters();
-                const requests = await api.request(`/portal/reservation-requests${buildQueryString(filters)}`);
+                const response = await api.requestPaged('/portal/reservation-requests', {
+                    fromDate: filters.fromDate,
+                    toDate: filters.toDate,
+                    status: filters.status !== 'all' ? filters.status : undefined,
+                    page,
+                    pageSize: historyPagination.pageSize
+                });
+                const requests = response.items || [];
+                historyPagination = {
+                    page: response.page || page,
+                    pageSize: response.pageSize || historyPagination.pageSize,
+                    totalItems: response.totalItems || 0,
+                    totalPages: response.totalPages || 0
+                };
 
-                historyCount.textContent = `${requests.length} resultado${requests.length === 1 ? '' : 's'}`;
+                historyCount.textContent = `${historyPagination.totalItems} resultado${historyPagination.totalItems === 1 ? '' : 's'}`;
                 historySummary.textContent = `Mostrando ${getStatusLabel(filters.status)} ${formatPeriodLabel(filters.fromDate, filters.toDate)}.`;
+                renderHistoryPagination();
 
                 if (!requests.length) {
                     container.innerHTML = '<div class="empty-box">Nenhum agendamento encontrado para os filtros informados.</div>';
@@ -613,7 +654,17 @@
                 container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Erro ao carregar solicitacoes.')}</div>`;
                 historyCount.textContent = 'Erro';
                 historySummary.textContent = 'Nao foi possivel aplicar os filtros agora.';
+                renderHistoryPagination();
             }
+        }
+
+        function changeHistoryPage(step) {
+            const nextPage = historyPagination.page + step;
+            if (nextPage < 1 || (historyPagination.totalPages > 0 && nextPage > historyPagination.totalPages)) {
+                return;
+            }
+
+            loadRequests(nextPage);
         }
 
         async function cancelRequest(id) {

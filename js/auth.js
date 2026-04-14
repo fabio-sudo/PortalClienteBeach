@@ -19,6 +19,14 @@ function buildPortalSession(response) {
     };
 }
 
+function readStoredPortalSession() {
+    try {
+        return JSON.parse(localStorage.getItem('portal_user') || 'null');
+    } catch {
+        return null;
+    }
+}
+
 async function completePortalCallbackLogin(token, fallbackProfile = null) {
     localStorage.setItem('portal_token', token);
 
@@ -42,6 +50,24 @@ async function completePortalCallbackLogin(token, fallbackProfile = null) {
         throw error;
     }
 }
+
+window.syncPortalSessionProfile = async function () {
+    const token = localStorage.getItem('portal_token');
+    if (!token) {
+        return null;
+    }
+
+    const currentSession = readStoredPortalSession() || {};
+    const profile = await api.request('/portal/profile/me');
+    const refreshedSession = buildPortalSession({
+        ...currentSession,
+        token,
+        ...profile
+    });
+
+    persistPortalSession(refreshedSession);
+    return refreshedSession;
+};
 
 function readPortalOAuthCallback() {
     const params = new URLSearchParams(window.location.search);
@@ -210,3 +236,28 @@ function logout() {
     localStorage.removeItem('portal_user');
     window.location.href = 'index.html';
 }
+
+function ensurePortalTrainingLink() {
+    const nav = document.querySelector('.portal-nav-tabs');
+    if (!nav || nav.querySelector('.portal-nav-link[href="treinos.html"]')) {
+        return;
+    }
+
+    const currentFile = window.location.pathname.split('/').pop() || 'dashboard.html';
+    const link = document.createElement('a');
+    link.href = 'treinos.html';
+    link.className = `portal-nav-link${currentFile === 'treinos.html' ? ' active' : ''}`;
+    link.textContent = 'Treinos';
+
+    const billingLink = nav.querySelector('.portal-nav-link[href="mensalidades.html"]');
+    if (billingLink) {
+        billingLink.insertAdjacentElement('beforebegin', link);
+        return;
+    }
+
+    nav.appendChild(link);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    ensurePortalTrainingLink();
+});

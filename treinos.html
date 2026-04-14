@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena Portal - Treinos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .portal-training-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 18px;
+        }
+
+        .portal-training-card {
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            border-radius: 24px;
+            background: rgba(15, 23, 42, 0.62);
+            padding: 20px;
+            box-shadow: 0 20px 30px rgba(2, 6, 23, 0.18);
+        }
+
+        .portal-training-days {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .portal-training-day {
+            border-radius: 999px;
+            padding: 7px 12px;
+            background: rgba(34, 197, 94, 0.12);
+            color: #9ae6b4;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .portal-training-meta {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .portal-training-meta div {
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .portal-training-meta strong {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .portal-empty-state {
+            text-align: center;
+            padding: 32px 18px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body class="portal-page">
+    <div class="dashboard-layout">
+        <header class="topbar portal-topbar">
+            <div class="portal-topbar-stack">
+                <div class="portal-topbar-head">
+                    <div class="portal-brand">
+                        <div class="portal-brand-mark">AP</div>
+                        <div class="portal-brand-copy">
+                            <strong>Arena Portal</strong>
+                            <span id="userNameDisplay">Consulte seus treinamentos e os dias em que voce treina.</span>
+                        </div>
+                    </div>
+                    <div class="portal-top-actions">
+                        <div class="portal-action-group">
+                            <div class="notifications-wrapper" style="position:relative;">
+                                <button id="btnNotifications" class="portal-icon-button" type="button" aria-label="Notificacoes">
+                                    <span class="portal-icon-symbol" aria-hidden="true">&#128276;</span>
+                                    <span id="notificationBadge" class="portal-notification-badge">0</span>
+                                </button>
+                                <div id="notificationsDropdown" class="portal-dropdown">
+                                    <div class="portal-dropdown-header">
+                                        <strong>Notificacoes</strong>
+                                        <a href="#" id="btnMarkAllRead" class="portal-dropdown-link">Marcar lidas</a>
+                                    </div>
+                                    <div id="notificationsList" class="portal-dropdown-body">
+                                        <p style="color:var(--text-muted); text-align:center; font-size:0.9rem; margin-top:10px;">Carregando...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn-ghost" onclick="logout()">
+                                <span aria-hidden="true">&#x21AA;</span>
+                                <span>Sair</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <nav class="portal-nav-tabs" aria-label="Menu do portal">
+                    <a href="dashboard.html" class="portal-nav-link">Visao geral</a>
+                    <a href="agendamentos.html" class="portal-nav-link">Agendamentos</a>
+                    <a href="comandas.html" class="portal-nav-link">Comandas</a>
+                    <a href="treinos.html" class="portal-nav-link active">Treinos</a>
+                    <a href="mensalidades.html" class="portal-nav-link">Mensalidades</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="main-content portal-dashboard-main">
+            <section class="portal-panel">
+                <div class="portal-section-title">Agenda fixa</div>
+                <h1 class="portal-hero-title" style="margin-bottom:8px;">Meus treinos</h1>
+                <p id="pageDescription" class="portal-hero-copy">Carregando suas turmas, quadras e dias da semana.</p>
+            </section>
+
+            <section class="portal-panel" style="margin-top:20px;">
+                <div id="trainingsContainer" class="portal-training-grid"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function getStoredPortalUser() {
+            try {
+                return JSON.parse(localStorage.getItem('portal_user') || 'null');
+            } catch {
+                return null;
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderEmptyState(message) {
+            document.getElementById('trainingsContainer').innerHTML = `
+                <div class="portal-empty-state">
+                    <strong style="display:block; color:var(--text-primary); margin-bottom:8px;">Nenhum treino encontrado</strong>
+                    <span>${escapeHtml(message)}</span>
+                </div>
+            `;
+        }
+
+        function renderTrainings(trainings) {
+            const container = document.getElementById('trainingsContainer');
+            if (!trainings.length) {
+                renderEmptyState('Quando a arena vincular sua turma, ela vai aparecer aqui com os dias da semana e a quadra.');
+                return;
+            }
+
+            container.innerHTML = trainings.map(training => `
+                <article class="portal-training-card">
+                    <div class="portal-section-title">Turma</div>
+                    <h3 class="portal-feature-title" style="margin-bottom:6px;">${escapeHtml(training.name)}</h3>
+                    <p class="portal-feature-copy">${escapeHtml(training.notes || 'Treino cadastrado pela arena com dias e quadra definidos para seu acompanhamento.')}</p>
+
+                    <div class="portal-training-meta">
+                        <div>
+                            <strong>Quadra</strong>
+                            <span>${escapeHtml(training.courtName)}${training.courtSportType ? ` - ${escapeHtml(training.courtSportType)}` : ''}</span>
+                        </div>
+                        <div>
+                            <strong>Horario</strong>
+                            <span>${escapeHtml(training.startTime)} - ${escapeHtml(training.endTime)}</span>
+                        </div>
+                    </div>
+
+                    <div class="portal-training-days">
+                        ${training.dayLabels.map(day => `<span class="portal-training-day">${escapeHtml(day)}</span>`).join('')}
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const sessionUser = getStoredPortalUser();
+            if (!sessionUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            let currentUser = sessionUser;
+            try {
+                currentUser = await (window.syncPortalSessionProfile?.() ?? Promise.resolve(sessionUser)) || sessionUser;
+            } catch (error) {
+                console.warn('Nao foi possivel sincronizar o perfil do portal.', error);
+            }
+
+            const displayName = currentUser.name || currentUser.username || 'Aluno';
+            document.getElementById('userNameDisplay').textContent = `${displayName}, acompanhe aqui os dias e horarios dos seus treinos.`;
+
+            if (!currentUser.studentId) {
+                document.getElementById('pageDescription').textContent = 'Este portal ainda nao esta vinculado a um aluno com treinos cadastrados.';
+                renderEmptyState('Seu acesso atual nao possui um aluno vinculado para exibir treinos.');
+                return;
+            }
+
+            try {
+                const trainings = await api.request('/portal/profile/trainings');
+                document.getElementById('pageDescription').textContent = trainings.length
+                    ? 'Veja em quais dias da semana voce treina e qual quadra sera utilizada.'
+                    : 'Ainda nao encontramos treinos vinculados ao seu cadastro.';
+                renderTrainings(trainings);
+            } catch (error) {
+                console.error(error);
+                document.getElementById('pageDescription').textContent = 'Nao foi possivel carregar os treinos agora.';
+                renderEmptyState('Tente novamente em instantes ou fale com a arena para revisar seu vinculo.');
+            }
+        });
+    </script>
+    <script src="js/notifications.js"></script>
+</body>
+</html>

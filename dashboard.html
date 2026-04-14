@@ -118,6 +118,13 @@
                         <p class="portal-feature-copy">Abra comanda, envie pedidos ao bar e acompanhe o status sem depender do balcao.</p>
                     </div>
                 </a>
+                <a href="treinos.html" class="portal-card-link portal-card-stretch">
+                    <div class="portal-panel portal-feature-panel">
+                        <div class="portal-section-title">Treinamento</div>
+                        <h3 class="portal-feature-title">Minha agenda fixa</h3>
+                        <p class="portal-feature-copy">Consulte sua turma, a quadra utilizada e os dias da semana em que seus treinos acontecem.</p>
+                    </div>
+                </a>
             </section>
 
             <section id="studentBillingSection" class="portal-grid-2 portal-dashboard-lower">
@@ -149,6 +156,13 @@
                                 <span>Use quando ja existir uma comanda aprovada.</span>
                             </div>
                             <a href="comandas.html" class="portal-pill info" style="text-decoration:none;">Acessar</a>
+                        </div>
+                        <div class="portal-list-item">
+                            <div>
+                                <strong>Meus treinos</strong>
+                                <span>Veja turma, quadra e dias em que voce treina.</span>
+                            </div>
+                            <a href="treinos.html" class="portal-pill info" style="text-decoration:none;">Abrir</a>
                         </div>
                     </div>
                 </div>
@@ -217,7 +231,14 @@
                 return;
             }
 
-            const hasBillingAccess = applyPortalUserSnapshot(sessionUser);
+            let currentUser = sessionUser;
+            try {
+                currentUser = await (window.syncPortalSessionProfile?.() ?? Promise.resolve(sessionUser)) || sessionUser;
+            } catch (error) {
+                console.warn('Nao foi possivel sincronizar o perfil do portal.', error);
+            }
+
+            const hasBillingAccess = applyPortalUserSnapshot(currentUser);
             document.body.classList.toggle('customer-mode', !hasBillingAccess);
 
             if (!hasBillingAccess) {

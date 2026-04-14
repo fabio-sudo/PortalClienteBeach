@@ -87,8 +87,19 @@
                 <section class="page-grid">
                     <div class="portal-panel">
                         <div class="portal-section-title">Cardapio</div>
+                        <div class="input-group" style="margin-bottom:16px;">
+                            <label for="productSearchInput">Buscar item</label>
+                            <input type="text" id="productSearchInput" placeholder="Digite o nome do produto">
+                        </div>
                         <div id="productGrid" class="product-grid">
                             <div class="empty-box">Carregando produtos...</div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;">
+                            <span id="productsPaginationInfo" style="color:var(--text-muted); font-size:0.9rem;">Carregando pagina...</span>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" class="btn btn-ghost" id="productsPrevBtn" style="width:auto;" onclick="changeProductsPage(-1)">Anterior</button>
+                                <button type="button" class="btn btn-ghost" id="productsNextBtn" style="width:auto;" onclick="changeProductsPage(1)">Proxima</button>
+                            </div>
                         </div>
                     </div>
 
@@ -113,6 +124,13 @@
                     <div id="requestsContainer" class="request-list">
                         <div class="empty-box">Carregando pedidos...</div>
                     </div>
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:16px;">
+                        <span id="requestsPaginationInfo" style="color:var(--text-muted); font-size:0.9rem;">Carregando pagina...</span>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn btn-ghost" id="requestsPrevBtn" style="width:auto;" onclick="changeRequestsPage(-1)">Anterior</button>
+                            <button type="button" class="btn btn-ghost" id="requestsNextBtn" style="width:auto;" onclick="changeRequestsPage(1)">Proxima</button>
+                        </div>
+                    </div>
                 </section>
             </main>
         </div>
@@ -124,6 +142,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const currentTabId = parseInt(urlParams.get('tabId') || '0', 10);
         let cart = [];
+        let productsPagination = { page: 1, pageSize: 8, totalItems: 0, totalPages: 0 };
+        let requestsPagination = { page: 1, pageSize: 6, totalItems: 0, totalPages: 0 };
+        let productSearchDebounce = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (!localStorage.getItem('portal_user')) {
@@ -152,6 +173,10 @@
 
             await Promise.all([loadProducts(), loadRequests()]);
             document.getElementById('submitOrderBtn').addEventListener('click', submitOrders);
+            document.getElementById('productSearchInput').addEventListener('input', () => {
+                window.clearTimeout(productSearchDebounce);
+                productSearchDebounce = window.setTimeout(() => loadProducts(1), 250);
+            });
             setInterval(() => syncTabState(false), 15000);
             document.addEventListener('visibilitychange', () => {
                 if (!document.hidden) {
@@ -220,14 +245,26 @@
             return true;
         }
 
-        async function loadProducts() {
+        async function loadProducts(page = productsPagination.page) {
             const container = document.getElementById('productGrid');
             try {
-                const products = await api.request('/products').catch(() => []);
-                const availableProducts = products.filter(product => product.isActive);
+                const response = await api.requestPaged('/products', {
+                    isActive: true,
+                    search: document.getElementById('productSearchInput').value.trim(),
+                    page,
+                    pageSize: productsPagination.pageSize
+                }).catch(() => null);
+                const availableProducts = response?.items || [];
+                productsPagination = {
+                    page: response?.page || page,
+                    pageSize: response?.pageSize || productsPagination.pageSize,
+                    totalItems: response?.totalItems || 0,
+                    totalPages: response?.totalPages || 0
+                };
 
                 if (!availableProducts.length) {
                     container.innerHTML = '<div class="empty-box">Nenhum produto disponivel no momento.</div>';
+                    renderProductsPagination();
                     return;
                 }
 
@@ -276,9 +313,39 @@
                     article.appendChild(button);
                     container.appendChild(article);
                 });
+                renderProductsPagination();
             } catch (error) {
                 container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Erro ao carregar produtos.')}</div>`;
+                renderProductsPagination();
             }
+        }
+
+        function renderProductsPagination() {
+            const info = document.getElementById('productsPaginationInfo');
+            const prev = document.getElementById('productsPrevBtn');
+            const next = document.getElementById('productsNextBtn');
+
+            if (!productsPagination.totalItems) {
+                info.textContent = 'Nenhum produto encontrado.';
+                prev.disabled = true;
+                next.disabled = true;
+                return;
+            }
+
+            const start = ((productsPagination.page - 1) * productsPagination.pageSize) + 1;
+            const end = Math.min(productsPagination.page * productsPagination.pageSize, productsPagination.totalItems);
+            info.textContent = `Exibindo ${start}-${end} de ${productsPagination.totalItems} item(ns). Pagina ${productsPagination.page} de ${Math.max(productsPagination.totalPages, 1)}.`;
+            prev.disabled = productsPagination.page <= 1;
+            next.disabled = productsPagination.totalPages === 0 || productsPagination.page >= productsPagination.totalPages;
+        }
+
+        function changeProductsPage(step) {
+            const nextPage = productsPagination.page + step;
+            if (nextPage < 1 || (productsPagination.totalPages > 0 && nextPage > productsPagination.totalPages)) {
+                return;
+            }
+
+            loadProducts(nextPage);
         }
 
         function addToCart(productId, name, price) {
@@ -366,13 +433,25 @@
             }
         }
 
-        async function loadRequests() {
+        async function loadRequests(page = 1) {
             const container = document.getElementById('requestsContainer');
             try {
-                const requests = await api.request(`/portal/tab-item-requests?tabId=${currentTabId}`);
+                const response = await api.requestPaged('/portal/tab-item-requests', {
+                    tabId: currentTabId,
+                    page,
+                    pageSize: requestsPagination.pageSize
+                });
+                const requests = response.items || [];
+                requestsPagination = {
+                    page: response.page || page,
+                    pageSize: response.pageSize || requestsPagination.pageSize,
+                    totalItems: response.totalItems || 0,
+                    totalPages: response.totalPages || 0
+                };
 
                 if (!requests.length) {
                     container.innerHTML = '<div class="empty-box">Voce ainda nao possui pedidos nesta comanda.</div>';
+                    renderRequestsPagination();
                     return;
                 }
 
@@ -409,9 +488,39 @@
                             </div>
                         </article>`;
                 }).join('');
+                renderRequestsPagination();
             } catch (error) {
                 container.innerHTML = `<div class="empty-box">${escapeHtml(error.message || 'Erro ao carregar pedidos.')}</div>`;
+                renderRequestsPagination();
             }
+        }
+
+        function renderRequestsPagination() {
+            const info = document.getElementById('requestsPaginationInfo');
+            const prev = document.getElementById('requestsPrevBtn');
+            const next = document.getElementById('requestsNextBtn');
+
+            if (!requestsPagination.totalItems) {
+                info.textContent = 'Nenhum pedido nesta comanda.';
+                prev.disabled = true;
+                next.disabled = true;
+                return;
+            }
+
+            const start = ((requestsPagination.page - 1) * requestsPagination.pageSize) + 1;
+            const end = Math.min(requestsPagination.page * requestsPagination.pageSize, requestsPagination.totalItems);
+            info.textContent = `Exibindo ${start}-${end} de ${requestsPagination.totalItems} pedido(s). Pagina ${requestsPagination.page} de ${Math.max(requestsPagination.totalPages, 1)}.`;
+            prev.disabled = requestsPagination.page <= 1;
+            next.disabled = requestsPagination.totalPages === 0 || requestsPagination.page >= requestsPagination.totalPages;
+        }
+
+        function changeRequestsPage(step) {
+            const nextPage = requestsPagination.page + step;
+            if (nextPage < 1 || (requestsPagination.totalPages > 0 && nextPage > requestsPagination.totalPages)) {
+                return;
+            }
+
+            loadRequests(nextPage);
         }
 
         async function cancelRequest(id) {
