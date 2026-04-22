@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_RUNTIME_CONFIG = {
-    apiPrefix: 'https://arena-api-h5cqf9b4brbsbnfb.brazilsouth-01.azurewebsites.net/api',
-    portalApiPrefix: 'https://arena-api-h5cqf9b4brbsbnfb.brazilsouth-01.azurewebsites.net/api',
+    apiPrefix: '',
+    portalApiPrefix: '',
     googleClientId: '1001684908537-r8544gu7n3j51c3ioci59cn3fjkh6nh8.apps.googleusercontent.com'
 };
 

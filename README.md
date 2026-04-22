@@ -1,48 +1,45 @@
-# Arena Portal Cliente no Azure App Service
+# Arena Portal Cliente
 
-Este portal foi preparado para rodar como um app Node simples no Azure App Service, servindo os arquivos HTML/CSS/JS da pasta e montando a configuracao de runtime via App Settings.
+Este frontend funciona em dois modos:
 
-## O que subir no Azure
+- local em Docker/Node, servindo `runtime-config.json` dinamicamente
+- hospedagem estatica, como GitHub Pages, usando `js/runtime-config.json`
 
-Crie o Web App com estas escolhas:
+## Configuracao da API
 
-- Publicacao: `Codigo`
-- Sistema operacional: `Linux`
-- Stack de runtime: `Node 20 LTS` ou superior
-- Plano: o menor que atender seu uso, preferencialmente na mesma regiao da API
-- Startup Command: deixar em branco
+O portal nao depende de servir arquivos pelo backend. A URL da API deve ser definida em runtime por um destes caminhos:
 
-## App Settings recomendadas
+- `js/runtime-config.json`
+- `window.ARENA_PORTAL_API_PREFIX`
+- `meta[name="arena-api-prefix"]`
 
-No recurso do App Service, abra `Environment variables` e cadastre:
+Exemplo de `js/runtime-config.json`:
 
-- `PORTAL_API_PREFIX` = URL base da API com `/api`
-- `PORTAL_GOOGLE_CLIENT_ID` = Client ID do Google Sign-In usado no portal
-
-Exemplo:
-
-- `PORTAL_API_PREFIX=https://arena-api-h5cqf9b4brbsbnfb.brazilsouth-01.azurewebsites.net/api`
-- `PORTAL_GOOGLE_CLIENT_ID=1001684908537-r8544gu7n3j51c3ioci59cn3fjkh6nh8.apps.googleusercontent.com`
+```json
+{
+  "apiPrefix": "https://SEU-APP-AZURE.azurewebsites.net/api",
+  "portalApiPrefix": "https://SEU-APP-AZURE.azurewebsites.net/api",
+  "googleClientId": "SEU_GOOGLE_CLIENT_ID"
+}
+```
 
 ## Teste local
 
 Dentro desta pasta:
 
 ```powershell
-npm start
+node server.js
 ```
 
-Depois abra:
+Depois abra [http://localhost:8080](http://localhost:8080).
 
-- `http://localhost:8080`
+## Publicacao estatica
 
-## Publicacao automatizada
+Antes de publicar em GitHub Pages, gere o `runtime-config.json` com a URL da API correta:
 
-Existe um workflow em `.github/workflows/deploy-portal-cliente.yml`.
+```powershell
+cd "C:\Users\Admin\Desktop\ProjetoERPBeachTennis\Projeto Beach Tenis"
+.\scripts\generate-runtime-config.ps1 -AdminApiPrefix "https://SEU-APP-AZURE.azurewebsites.net/api" -PortalApiPrefix "https://SEU-APP-AZURE.azurewebsites.net/api" -GoogleClientId "SEU_GOOGLE_CLIENT_ID"
+```
 
-Para usar no GitHub, configure estes secrets no repositorio:
-
-- `AZURE_PORTAL_CLIENTE_WEBAPP_NAME`
-- `AZURE_PORTAL_CLIENTE_PUBLISH_PROFILE`
-
-O segundo valor vem de `Get publish profile` dentro do App Service no Azure.
+Depois publique apenas os arquivos estaticos desta pasta no repositório do GitHub Pages.

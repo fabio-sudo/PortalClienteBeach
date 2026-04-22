@@ -26,9 +26,21 @@ function isLocalEnvironment() {
         || window.location.hostname === '127.0.0.1';
 }
 
+function shouldUseUnifiedLocalApi() {
+    if (!isLocalEnvironment() || window.location.protocol === 'file:') {
+        return false;
+    }
+
+    return window.location.port === '8080';
+}
+
 function getDefaultPortalApiPrefix() {
     if (!isLocalEnvironment()) {
         return DEFAULT_PORTAL_API_PREFIX;
+    }
+
+    if (shouldUseUnifiedLocalApi()) {
+        return `${window.location.origin}/api`;
     }
 
     if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -99,9 +111,7 @@ const runtimeConfig = Object.assign(
 window.ARENA_RUNTIME_CONFIG = runtimeConfig;
 
 if (!window.ARENA_PORTAL_API_PREFIX) {
-    window.ARENA_PORTAL_API_PREFIX = isLocalEnvironment()
-        ? ''
-        : sanitizeConfigValue(runtimeConfig.portalApiPrefix || runtimeConfig.apiPrefix);
+    window.ARENA_PORTAL_API_PREFIX = sanitizeConfigValue(runtimeConfig.portalApiPrefix || runtimeConfig.apiPrefix);
 }
 
 if (!window.ARENA_GOOGLE_CLIENT_ID) {
@@ -114,18 +124,49 @@ function resolvePortalApiUrl() {
         document.querySelector('meta[name="arena-api-prefix"]')?.content
     );
     const persistedConfiguredValue = sanitizeConfigValue(localStorage.getItem('arena_api_prefix'));
+    const runtimeConfiguredValue = sanitizeConfigValue(runtimeConfig.portalApiPrefix || runtimeConfig.apiPrefix);
+
+    function isAllowedLocalApiPrefix(value) {
+        return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api$/i.test(trimTrailingSlash(value));
+    }
 
     if (isLocalEnvironment()) {
         const normalizedLocalPersistedValue = trimTrailingSlash(persistedConfiguredValue);
-        const isLocalPersistedValue = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api$/i.test(normalizedLocalPersistedValue);
+        const normalizedGlobalConfiguredValue = trimTrailingSlash(globalConfiguredValue);
+        const normalizedMetaConfiguredValue = trimTrailingSlash(metaConfiguredValue);
+        const normalizedRuntimeConfiguredValue = trimTrailingSlash(runtimeConfiguredValue);
+        const isLocalPersistedValue = isAllowedLocalApiPrefix(normalizedLocalPersistedValue);
+        const unifiedLocalApiPrefix = trimTrailingSlash(`${window.location.origin}/api`);
 
         if (persistedConfiguredValue && !isLocalPersistedValue) {
             localStorage.removeItem('arena_api_prefix');
         }
 
-        return isLocalPersistedValue
-            ? normalizedLocalPersistedValue
-            : trimTrailingSlash(getDefaultPortalApiPrefix());
+        if (shouldUseUnifiedLocalApi()) {
+            if (normalizedLocalPersistedValue && normalizedLocalPersistedValue !== unifiedLocalApiPrefix) {
+                localStorage.removeItem('arena_api_prefix');
+            }
+
+            return unifiedLocalApiPrefix;
+        }
+
+        if (isLocalPersistedValue) {
+            return normalizedLocalPersistedValue;
+        }
+
+        if (isAllowedLocalApiPrefix(normalizedGlobalConfiguredValue)) {
+            return normalizedGlobalConfiguredValue;
+        }
+
+        if (isAllowedLocalApiPrefix(normalizedMetaConfiguredValue)) {
+            return normalizedMetaConfiguredValue;
+        }
+
+        if (isAllowedLocalApiPrefix(normalizedRuntimeConfiguredValue)) {
+            return normalizedRuntimeConfiguredValue;
+        }
+
+        return trimTrailingSlash(getDefaultPortalApiPrefix());
     }
 
     if (globalConfiguredValue) {
@@ -149,8 +190,15 @@ if (!isLocalEnvironment() && !API_URL) {
 }
 
 function buildPortalApiUnavailableMessage(targetUrl = API_URL) {
+    let targetOrigin = targetUrl;
+
+    try {
+        targetOrigin = new URL(targetUrl).origin;
+    } catch {
+    }
+
     const environmentHint = isLocalEnvironment()
-        ? 'Confirme que o backend local esta ativo em http://localhost:5151 ou https://localhost:7044.'
+        ? `Confirme que o backend local esta ativo em ${targetOrigin}.`
         : 'Confirme que o App Service da API esta iniciado e com CORS liberado para o portal do cliente.';
 
     return `Nao foi possivel conectar a API configurada (${targetUrl}). ${environmentHint}`;
